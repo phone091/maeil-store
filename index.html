@@ -251,9 +251,9 @@ textarea{resize:vertical;min-height:55px}
 <div id="page-sales" class="page">
   <div class="ph"><div class="pt">매출 / 매입 관리</div><button class="btn btn-p" onclick="om('m-tx');document.getElementById('tx-date').value=new Date().toISOString().slice(0,10);document.getElementById('tx-cust').value='방문고객';document.getElementById('tx-edit-idx').value='-1';"><i class="ti ti-plus" aria-hidden="true"></i> 내역 추가</button></div>
   <div class="metrics">
-    <div class="mc up"><div class="mh"><span class="chip chip-teal"><i class="ti ti-trending-up" aria-hidden="true"></i></span><div class="ml">총 매출</div></div><div class="mv" id="sl-sale">0</div><div class="ms" id="sl-sale-sub">—</div></div>
-    <div class="mc"><div class="mh"><span class="chip chip-amber"><i class="ti ti-shopping-cart" aria-hidden="true"></i></span><div class="ml">총 매입</div></div><div class="mv" id="sl-cost">0</div><div class="ms" style="color:#9aa0a6" id="sl-cost-sub">—</div></div>
-    <div class="mc up"><div class="mh"><span class="chip chip-blue"><i class="ti ti-coin" aria-hidden="true"></i></span><div class="ml">순이익</div></div><div class="mv" id="sl-profit">0</div><div class="ms" id="sl-profit-sub">마진</div></div>
+    <div class="mc up"><div class="mh"><span class="chip chip-teal"><i class="ti ti-trending-up" aria-hidden="true"></i></span><div class="ml" id="sl-sale-lbl">2026년 매출</div></div><div class="mv" id="sl-sale">0</div><div class="ms" id="sl-sale-sub">—</div></div>
+    <div class="mc"><div class="mh"><span class="chip chip-amber"><i class="ti ti-shopping-cart" aria-hidden="true"></i></span><div class="ml" id="sl-cost-lbl">2026년 매입</div></div><div class="mv" id="sl-cost">0</div><div class="ms" style="color:#9aa0a6" id="sl-cost-sub">—</div></div>
+    <div class="mc up"><div class="mh"><span class="chip chip-blue"><i class="ti ti-coin" aria-hidden="true"></i></span><div class="ml" id="sl-profit-lbl">2026년 순이익</div></div><div class="mv" id="sl-profit">0</div><div class="ms" id="sl-profit-sub">마진</div></div>
     <div class="mc"><div class="mh"><span class="chip chip-red"><i class="ti ti-alert-circle" aria-hidden="true"></i></span><div class="ml">미수금</div></div><div class="mv" id="sl-unpaid">0</div><div class="ms" style="color:#D85A30" id="sl-unpaid-sub">—</div></div>
   </div>
   <div class="card">
@@ -522,19 +522,24 @@ function renderDashboard(){
 
   // (미결 견적서 카드 제거 — 최근 거래 내역으로 대체됨)
 
-  // 매출/매입 탭 메트릭도 업데이트
-  const allSale = txList.filter(t=>t.type==='매출').reduce((a,t)=>a+t.amt,0);
-  const allCost = txList.filter(t=>t.type==='매입').reduce((a,t)=>a+t.amt,0);
-  const allProfit = allSale - allCost;
+  // 매출/매입 탭 메트릭 (올해 기준, 연도 자동)
+  const slYear = new Date().getFullYear();
+  const slYP = slYear + '-';
+  const yrSale = txList.filter(t=>t.type==='매출'&&t.date&&t.date.startsWith(slYP)).reduce((a,t)=>a+t.amt,0);
+  const yrCost = txList.filter(t=>t.type==='매입'&&t.date&&t.date.startsWith(slYP)).reduce((a,t)=>a+t.amt,0);
+  const yrProfit = yrSale - yrCost;
   const allUnpaid = txList.filter(t=>t.type==='매출'&&!t.paid).reduce((a,t)=>a+t.amt,0);
   const allUnpaidCusts = [...new Set(txList.filter(t=>t.type==='매출'&&!t.paid).map(t=>t.cust))].length;
-  document.getElementById('sl-sale').textContent = fmt(allSale);
-  document.getElementById('sl-cost').textContent = fmt(allCost);
-  document.getElementById('sl-profit').textContent = fmt(allProfit);
+  const _slL1=document.getElementById('sl-sale-lbl'); if(_slL1) _slL1.textContent = slYear+'년 매출';
+  const _slL2=document.getElementById('sl-cost-lbl'); if(_slL2) _slL2.textContent = slYear+'년 매입';
+  const _slL3=document.getElementById('sl-profit-lbl'); if(_slL3) _slL3.textContent = slYear+'년 순이익';
+  document.getElementById('sl-sale').textContent = fmt(yrSale);
+  document.getElementById('sl-cost').textContent = fmt(yrCost);
+  document.getElementById('sl-profit').textContent = fmt(yrProfit);
   document.getElementById('sl-unpaid').textContent = fmt(allUnpaid);
   document.getElementById('sl-unpaid-sub').textContent = allUnpaidCusts ? `${allUnpaidCusts}곳` : '없음';
-  const allMargin = allSale ? Math.round(allProfit/allSale*100) : 0;
-  document.getElementById('sl-profit-sub').textContent = `마진 ${allMargin}%`;
+  const yrMargin = yrSale ? Math.round(yrProfit/yrSale*100) : 0;
+  document.getElementById('sl-profit-sub').textContent = `마진 ${yrMargin}%`;
 
   // ── 월별 매출 (실제 '매출' 거래 자동 집계, 최근 6개월)
   const monthAgg = {};
