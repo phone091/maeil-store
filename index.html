@@ -819,16 +819,16 @@ const LS_KEY = 'maeil_data_v1';
 //  ▼▼▼ 아래 firebaseConfig 를 본인 Firebase 프로젝트 값으로 교체하세요 ▼▼▼
 // ════════════════════════════════════════════════════════════
 const firebaseConfig = {
-  apiKey: "여기에_apiKey_붙여넣기",
-  authDomain: "여기에_authDomain_붙여넣기",
-  projectId: "여기에_projectId_붙여넣기",
-  storageBucket: "여기에_storageBucket_붙여넣기",
-  messagingSenderId: "여기에_messagingSenderId_붙여넣기",
-  appId: "여기에_appId_붙여넣기"
+  apiKey: "AIzaSyCzqLApKelMlvk4cUJ7pQPcgtIZu3tk93E",
+  authDomain: "maeilstore.firebaseapp.com",
+  projectId: "maeilstore",
+  storageBucket: "maeilstore.firebasestorage.app",
+  messagingSenderId: "179385156876",
+  appId: "1:179385156876:web:d6b51d3ccab347fd157529",
+  measurementId: "G-LSQM69EH07"
 };
-// Firebase 인증(이메일/비밀번호)에 만들어 둔 계정 1개
-const CLOUD_USER = "여기에_로그인이메일_붙여넣기";   // 예: maeil@thebom.com
-const CLOUD_PW   = "여기에_로그인비밀번호_붙여넣기";
+// Firebase 인증용 이메일 (이메일은 비밀이 아닙니다. 비밀번호는 코드에 저장하지 않습니다.)
+const CLOUD_USER = "phone091@gmail.com";
 // ────────────────────────────────────────────────────────────
 
 let _fbDoc = null, _cloudReady = false, _remoteApplying = false;
@@ -836,14 +836,26 @@ let _fbDoc = null, _cloudReady = false, _remoteApplying = false;
 function cloudConfigured(){
   return window.firebase && firebaseConfig.apiKey && !firebaseConfig.apiKey.startsWith('여기');
 }
+// 앱 초기화 + 로그인 상태 감시. 비밀번호는 사용자가 로그인 화면에서 입력할 때만 사용됩니다.
 function initCloud(){
   if(!cloudConfigured()){ console.log('[클라우드] 미설정 → 이 기기에만 저장됩니다.'); return; }
   try{
     if(!firebase.apps.length) firebase.initializeApp(firebaseConfig);
     _fbDoc = firebase.firestore().collection('maeil').doc('main');
-    firebase.auth().signInWithEmailAndPassword(CLOUD_USER, CLOUD_PW)
-      .then(()=>{ _cloudReady = true; attachCloudListener(); console.log('[클라우드] 연결됨 — 다른 기기와 동기화됩니다.'); })
-      .catch(err=>console.warn('[클라우드] 로그인 실패:', err.message));
+    // 로그인 세션은 브라우저에 안전하게 저장돼, 다음 방문 때 비밀번호 없이 자동 복원됩니다.
+    firebase.auth().onAuthStateChanged(function(user){
+      if(user){
+        _cloudReady = true;
+        document.getElementById('login-screen').style.display = 'none';
+        document.getElementById('main-app').style.display = 'flex';
+        attachCloudListener();
+        console.log('[클라우드] 연결됨 — 다른 기기와 동기화됩니다.');
+      } else {
+        _cloudReady = false;
+        document.getElementById('login-screen').style.display = 'flex';
+        document.getElementById('main-app').style.display = 'none';
+      }
+    });
   }catch(e){ console.warn('[클라우드] 초기화 실패:', e.message); }
 }
 function attachCloudListener(){
@@ -892,37 +904,47 @@ function loadData(){
   } catch(e){}
 }
 
-// ── 로그인
-const _CRED = {id:'thebom', pw:btoa('Dentis3517^^')};
+// ── 로그인 (비밀번호는 Firebase 인증으로 검증됩니다. 코드에는 저장되지 않습니다.)
+const LOCAL_ID = 'thebom';   // 화면 아이디 (비밀이 아님)
 function doLogin(){
   const id = document.getElementById('li-id').value.trim();
   const pw = document.getElementById('li-pw').value;
   const err = document.getElementById('li-err');
-  if(id === _CRED.id && btoa(pw) === _CRED.pw){
-    localStorage.setItem('maeil_auth','1');
-    document.getElementById('login-screen').style.display = 'none';
-    document.getElementById('main-app').style.display = 'flex';
-    err.style.display = 'none';
-  } else {
+  err.style.display = 'none';
+  if(!cloudConfigured()){
+    err.textContent = '클라우드가 설정되지 않았습니다.';
     err.style.display = 'block';
+    return;
   }
+  if(id !== LOCAL_ID){
+    err.textContent = '아이디 또는 비밀번호가 올바르지 않습니다.';
+    err.style.display = 'block';
+    return;
+  }
+  // 입력한 비밀번호로 Firebase에 로그인. 성공 시 화면 전환은 onAuthStateChanged 가 처리합니다.
+  firebase.auth().signInWithEmailAndPassword(CLOUD_USER, pw)
+    .catch(function(){
+      err.textContent = '아이디 또는 비밀번호가 올바르지 않습니다.';
+      err.style.display = 'block';
+    });
 }
 function doLogout(){
   localStorage.removeItem('maeil_auth');
-  location.reload();
+  if(window.firebase && firebase.apps && firebase.apps.length && firebase.auth().currentUser){
+    firebase.auth().signOut().finally(function(){ location.reload(); });
+  } else {
+    location.reload();
+  }
 }
 
 // 초기 렌더링
 document.addEventListener('DOMContentLoaded', ()=>{
   loadData();
-  if(localStorage.getItem('maeil_auth') === '1'){
-    document.getElementById('login-screen').style.display = 'none';
-    document.getElementById('main-app').style.display = 'flex';
-  } else {
-    document.getElementById('login-screen').style.display = 'flex';
-  }
   refreshAll();
-  initCloud();   // 클라우드 동기화 시작 (설정돼 있으면 다른 기기와 연결)
+  // 기본은 로그인 화면. 저장된 세션이 있으면 onAuthStateChanged 가 자동으로 앱을 엽니다.
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('main-app').style.display = 'none';
+  initCloud();
 });
 function om(id){document.getElementById(id).classList.add('open')}
 function cm(id){document.getElementById(id).classList.remove('open')}
