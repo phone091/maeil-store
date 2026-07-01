@@ -24,6 +24,10 @@
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<!-- ▼ 클라우드 동기화(여러 컴퓨터에서 같은 데이터) 를 위한 Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 </head>
 <body>
 <style>
@@ -224,15 +228,8 @@ textarea{resize:vertical;min-height:55px}
       <table><thead><tr><th>날짜</th><th>내용</th><th>금액</th><th>구분</th></tr></thead><tbody id="db-tx-tbody"></tbody></table>
     </div>
     <div class="card">
-      <div class="ct">월별 매출</div>
-      <div style="padding-top:2px">
-        <div class="cr"><div class="cl">1월</div><div style="flex:1"><div class="bw-wrap"><div class="bw-fill" style="width:58%"></div></div></div><div class="cv">5,810,000</div></div>
-        <div class="cr"><div class="cl">2월</div><div style="flex:1"><div class="bw-wrap"><div class="bw-fill" style="width:63%"></div></div></div><div class="cv">6,280,000</div></div>
-        <div class="cr"><div class="cl">3월</div><div style="flex:1"><div class="bw-wrap"><div class="bw-fill" style="width:72%"></div></div></div><div class="cv">7,190,000</div></div>
-        <div class="cr"><div class="cl">4월</div><div style="flex:1"><div class="bw-wrap"><div class="bw-fill" style="width:70%"></div></div></div><div class="cv">6,980,000</div></div>
-        <div class="cr"><div class="cl">5월</div><div style="flex:1"><div class="bw-wrap"><div class="bw-fill" style="width:75%"></div></div></div><div class="cv">7,520,000</div></div>
-        <div class="cr"><div class="cl">6월</div><div style="flex:1"><div class="bw-wrap"><div class="bw-fill" style="width:84%"></div></div></div><div class="cv">8,420,000</div></div>
-      </div>
+      <div class="ct">월별 매출 <span style="font-size:11px;font-weight:400;color:#999">(실제 매출 자동 집계)</span></div>
+      <div id="db-monthly" style="padding-top:2px"></div>
     </div>
   </div>
   <div class="card">
@@ -535,6 +532,27 @@ function renderDashboard(){
   document.getElementById('sl-unpaid-sub').textContent = allUnpaidCusts ? `${allUnpaidCusts}곳` : '없음';
   const allMargin = allSale ? Math.round(allProfit/allSale*100) : 0;
   document.getElementById('sl-profit-sub').textContent = `마진 ${allMargin}%`;
+
+  // ── 월별 매출 (실제 '매출' 거래 자동 집계, 최근 6개월)
+  const monthAgg = {};
+  txList.filter(t=>t.type==='매출').forEach(t=>{
+    if(!t.date || t.date.length<7) return;
+    const ym = t.date.slice(0,7); // YYYY-MM
+    monthAgg[ym] = (monthAgg[ym]||0) + t.amt;
+  });
+  const months = Object.keys(monthAgg).sort().slice(-6);
+  const maxV = Math.max(1, ...months.map(m=>monthAgg[m]));
+  const mEl = document.getElementById('db-monthly');
+  if(mEl){
+    mEl.innerHTML = months.length
+      ? months.map(m=>{
+          const v = monthAgg[m];
+          const pct = Math.round(v/maxV*100);
+          const label = parseInt(m.slice(5),10)+'월';
+          return `<div class="cr"><div class="cl">${label}</div><div style="flex:1"><div class="bw-wrap"><div class="bw-fill" style="width:${pct}%"></div></div></div><div class="cv">${fmt(v)}</div></div>`;
+        }).join('')
+      : '<div style="color:#999;padding:10px 2px;font-size:13px">매출 내역을 추가하면 월별 그래프가 자동으로 표시됩니다.</div>';
+  }
 }
 
 // ── 매출/매입 목록
@@ -795,12 +813,69 @@ function gp(id,el){
 }
 // ── localStorage 저장/불러오기
 const LS_KEY = 'maeil_data_v1';
+
+// ════════════════════════════════════════════════════════════
+//  클라우드 동기화 (Firebase Firestore) — 여러 컴퓨터에서 같은 데이터
+//  ▼▼▼ 아래 firebaseConfig 를 본인 Firebase 프로젝트 값으로 교체하세요 ▼▼▼
+// ════════════════════════════════════════════════════════════
+const firebaseConfig = {
+  apiKey: "여기에_apiKey_붙여넣기",
+  authDomain: "여기에_authDomain_붙여넣기",
+  projectId: "여기에_projectId_붙여넣기",
+  storageBucket: "여기에_storageBucket_붙여넣기",
+  messagingSenderId: "여기에_messagingSenderId_붙여넣기",
+  appId: "여기에_appId_붙여넣기"
+};
+// Firebase 인증(이메일/비밀번호)에 만들어 둔 계정 1개
+const CLOUD_USER = "여기에_로그인이메일_붙여넣기";   // 예: maeil@thebom.com
+const CLOUD_PW   = "여기에_로그인비밀번호_붙여넣기";
+// ────────────────────────────────────────────────────────────
+
+let _fbDoc = null, _cloudReady = false, _remoteApplying = false;
+
+function cloudConfigured(){
+  return window.firebase && firebaseConfig.apiKey && !firebaseConfig.apiKey.startsWith('여기');
+}
+function initCloud(){
+  if(!cloudConfigured()){ console.log('[클라우드] 미설정 → 이 기기에만 저장됩니다.'); return; }
+  try{
+    if(!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    _fbDoc = firebase.firestore().collection('maeil').doc('main');
+    firebase.auth().signInWithEmailAndPassword(CLOUD_USER, CLOUD_PW)
+      .then(()=>{ _cloudReady = true; attachCloudListener(); console.log('[클라우드] 연결됨 — 다른 기기와 동기화됩니다.'); })
+      .catch(err=>console.warn('[클라우드] 로그인 실패:', err.message));
+  }catch(e){ console.warn('[클라우드] 초기화 실패:', e.message); }
+}
+function attachCloudListener(){
+  _fbDoc.onSnapshot(snap=>{
+    if(!snap.exists){ cloudSave(); return; }   // 서버가 비어있으면 현재 데이터 최초 업로드
+    const d = snap.data() || {};
+    _remoteApplying = true;
+    if(Array.isArray(d.txList))  txList  = d.txList;
+    if(Array.isArray(d.estList)) estList = d.estList;
+    if(Array.isArray(d.taxList)) taxList = d.taxList;
+    if(Array.isArray(d.bizList)) bizList = d.bizList;
+    if(Array.isArray(d.perList)) perList = d.perList;
+    if(typeof d.estSeq==='number') estSeq = d.estSeq;
+    if(typeof d.taxSeq==='number') taxSeq = d.taxSeq;
+    try{ localStorage.setItem(LS_KEY, JSON.stringify({txList,estList,taxList,bizList,perList,estSeq,taxSeq})); }catch(e){}
+    renderSales(); renderEstList(); renderDashboard(); renderBiz(); renderPer();
+    _remoteApplying = false;
+  }, err=>console.warn('[클라우드] 수신 오류:', err.message));
+}
+function cloudSave(){
+  if(!_cloudReady || !_fbDoc || _remoteApplying) return;
+  _fbDoc.set({txList,estList,taxList,bizList,perList,estSeq,taxSeq,_updatedAt:Date.now()})
+    .catch(err=>console.warn('[클라우드] 저장 오류:', err.message));
+}
+
 function saveData(){
   try {
     localStorage.setItem(LS_KEY, JSON.stringify({
       txList, estList, taxList, bizList, perList, estSeq, taxSeq
     }));
   } catch(e){}
+  cloudSave();   // 클라우드에도 함께 저장
 }
 function loadData(){
   try {
@@ -847,6 +922,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
     document.getElementById('login-screen').style.display = 'flex';
   }
   refreshAll();
+  initCloud();   // 클라우드 동기화 시작 (설정돼 있으면 다른 기기와 연결)
 });
 function om(id){document.getElementById(id).classList.add('open')}
 function cm(id){document.getElementById(id).classList.remove('open')}
@@ -1553,16 +1629,25 @@ async function sendMMS(){
   }
 }
 
+// AI 분석 프롬프트 — 실제 데이터로 자동 생성
+function _monthlyStr(){
+  const agg={}; txList.filter(t=>t.type==='매출').forEach(t=>{ if(t.date&&t.date.length>=7){const m=t.date.slice(0,7); agg[m]=(agg[m]||0)+t.amt;} });
+  const ms=Object.keys(agg).sort().slice(-6);
+  return ms.length ? ms.map(m=>`${parseInt(m.slice(5),10)}월 ${fmt(agg[m])}`).join(' / ')+'원' : '(매출 데이터 없음)';
+}
 const AP={
-  monthly:`매일건재사(철물/건재) 6개월 매출: 1월 5,810,000 / 2월 6,280,000 / 3월 7,190,000 / 4월 6,980,000 / 5월 7,520,000 / 6월 8,420,000원. 비용 약 38%. 핵심 트렌드와 운영 조언을 한국어로 3~4가지 인사이트로 설명해주세요.`,
-  customer:`거래처: 삼성건설 12,400,000원(미수 없음), 대림공업사 8,900,000원(미수 680,000원), 한국인테리어 5,200,000원(미수 215,000원). 고객별 수익성과 관계 관리 전략을 한국어로 분석해주세요.`,
-  cost:`매일건재사 6월 총비용 3,180,000원(매출 8,420,000원 대비 38%). 비용 절감 전략 3~4가지를 한국어로 제안해주세요.`,
-  forecast:`6개월 매출(1~6월): 5,810,000→8,420,000원. 7월 매출 예측과 실질적 조치를 한국어로 설명해주세요.`,
-  unpaid:`미수금: 대림공업사 680,000원(06/08), 한국인테리어 215,000원(06/03). 미수금 회수 전략을 한국어로 제안해주세요.`
+  monthly:()=>`매일건재사(철물/건재) 최근 월별 매출: ${_monthlyStr()}. 핵심 트렌드와 운영 조언을 한국어로 3~4가지 인사이트로 설명해주세요.`,
+  customer:()=>{
+    const rows=bizList.map(b=>{ const sale=txList.filter(t=>t.cust===b.name&&t.type==='매출').reduce((a,t)=>a+t.amt,0); const unpaid=txList.filter(t=>t.cust===b.name&&t.type==='매출'&&!t.paid).reduce((a,t)=>a+t.amt,0); return `${b.name} 매출 ${fmt(sale)}원(미수 ${fmt(unpaid)}원)`; });
+    return `거래처별 실적: ${rows.length?rows.join(', '):'(거래처 데이터 없음)'}. 고객별 수익성과 관계 관리 전략을 한국어로 분석해주세요.`;
+  },
+  cost:()=>{ const s=txList.filter(t=>t.type==='매출').reduce((a,t)=>a+t.amt,0); const c=txList.filter(t=>t.type==='매입').reduce((a,t)=>a+t.amt,0); const r=s?Math.round(c/s*100):0; return `매일건재사 누적 총비용 ${fmt(c)}원(총매출 ${fmt(s)}원 대비 ${r}%). 비용 절감 전략 3~4가지를 한국어로 제안해주세요.`; },
+  forecast:()=>`최근 월별 매출: ${_monthlyStr()}. 다음달 매출 예측과 실질적 조치를 한국어로 설명해주세요.`,
+  unpaid:()=>{ const u=txList.filter(t=>t.type==='매출'&&!t.paid).map(t=>`${t.cust} ${fmt(t.amt)}원(${fmtDate(t.date)})`); return `미수금 현황: ${u.length?u.join(', '):'(미수금 없음)'}. 미수금 회수 전략을 한국어로 제안해주세요.`; }
 };
 
 function runAI(key){
-  const prompt = AP[key];
+  const prompt = typeof AP[key]==='function' ? AP[key]() : AP[key];
   if(!prompt) return;
   const ph = document.getElementById('ai-ph');
   const area = document.getElementById('ai-area');
