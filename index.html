@@ -347,7 +347,7 @@ textarea{resize:vertical;min-height:55px}
     <div class="fr"><div><label>사업자등록번호</label><input type="text" id="bo-sbizno" placeholder="000-00-00000"></div><div><label>담당자 이메일</label><input type="email" id="bo-semail"></div></div>
     <div class="fr full"><div><label>주소</label><input type="text" id="bo-saddr"></div></div>
     <div class="fr"><div><label>업태</label><input type="text" id="bo-sbizcat" placeholder="예: 도소매"></div><div><label>종목</label><input type="text" id="bo-sbizitem" placeholder="예: 건축자재"></div></div>
-    <div class="fr full"><div><label>프록시 URL (선택 — 브라우저에서 직접 호출이 안 될 때만)</label><input type="text" id="bo-proxy" placeholder="비워두면 볼타 API에 직접 연결"></div></div>
+    <div class="fr full"><div><label>프록시 URL (구글 앱스 스크립트 웹앱 주소 — CORS 우회용, 필수)</label><input type="text" id="bo-proxy" placeholder="https://script.google.com/macros/s/....../exec"></div></div>
     <div class="abar" style="margin-top:12px;padding-top:12px;">
       <button class="btn btn-p" onclick="boltaSaveSettings()"><i class="ti ti-check"></i> 저장</button>
       <button class="btn btn-b" onclick="boltaRegisterSupplier()"><i class="ti ti-user-plus"></i> 공급자 등록 (supplierKey 발급)</button>
@@ -1833,16 +1833,37 @@ const boltaLive = () => (boltaCfg.apiKey||'').startsWith('live_');
 
 async function boltaApi(path, method, body, extraHeaders){
   if(!boltaCfg.apiKey) throw new Error('볼타 API 키가 없습니다. [볼타 설정]에서 먼저 입력해주세요.');
-  const base = (boltaCfg.proxy||'').trim().replace(/\/+$/,'') || 'https://xapi.bolta.io';
   const headers = Object.assign({
     'Authorization':'Basic '+btoa(boltaCfg.apiKey+':'),
     'Content-Type':'application/json'
   }, extraHeaders||{});
+  const proxy = (boltaCfg.proxy||'').trim();
+  if(proxy){
+    // 구글 앱스 스크립트 프록시 경유 (CORS 우회)
+    let res, wrap;
+    try{
+      res = await fetch(proxy, {
+        method:'POST',
+        headers:{'Content-Type':'text/plain;charset=utf-8'},
+        body: JSON.stringify({path:path, method:method||'GET', headers:headers, body:body||null})
+      });
+      wrap = await res.json();
+    }catch(e){
+      throw new Error('프록시 서버에 연결하지 못했습니다.\n프록시 URL이 정확한지, 앱스 스크립트가 "모든 사용자" 액세스로 배포됐는지 확인해주세요.\n원인: '+e.message);
+    }
+    let data = null;
+    try{ data = JSON.parse(wrap.body); }catch(e){}
+    if(!(wrap.status>=200 && wrap.status<300)){
+      const msg = data&&data.message ? data.message+(data.code?' ['+data.code+']':'') : 'HTTP '+wrap.status;
+      throw new Error(msg);
+    }
+    return data;
+  }
   let res;
   try{
-    res = await fetch(base+path, {method:method||'GET', headers, body: body?JSON.stringify(body):undefined});
+    res = await fetch('https://xapi.bolta.io'+path, {method:method||'GET', headers, body: body?JSON.stringify(body):undefined});
   }catch(e){
-    throw new Error('볼타 서버에 연결하지 못했습니다.\n(브라우저 차단(CORS)일 수 있습니다 — 이 경우 프록시 설정이 필요하니 알려주세요.)\n원인: '+e.message);
+    throw new Error('볼타 서버에 연결하지 못했습니다.\n브라우저 차단(CORS)입니다 — [볼타 설정]의 프록시 URL에 구글 앱스 스크립트 웹앱 주소를 넣어주세요.\n원인: '+e.message);
   }
   let data = null;
   try{ data = await res.json(); }catch(e){}
