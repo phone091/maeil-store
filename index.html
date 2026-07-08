@@ -215,6 +215,7 @@ textarea{resize:vertical;min-height:55px}
   <div class="nav-item" onclick="gp('sales',this)"><i class="ti ti-cash" aria-hidden="true"></i> 매출/매입</div>
   <div class="nav-item" onclick="gp('customers',this)"><i class="ti ti-users" aria-hidden="true"></i> 고객 관리</div>
   <div class="nav-item" onclick="gp('estimates',this)"><i class="ti ti-file-text" aria-hidden="true"></i> 견적서</div>
+  <div class="nav-item" id="nav-bolta" onclick="gp('bolta',this)"><i class="ti ti-file-invoice" aria-hidden="true"></i> 세금계산서</div>
   <div class="nav-item" onclick="gp('ai',this)"><i class="ti ti-sparkles" aria-hidden="true"></i> AI 분석</div>
   <div style="margin-top:auto;padding:12px 18px;border-top:0.5px solid #e5e5e5;">
     <div onclick="doLogout()" style="display:flex;align-items:center;gap:8px;font-size:13px;color:#999;cursor:pointer;padding:6px 0;" onmouseover="this.style.color='#e74c3c'" onmouseout="this.style.color='#999'">
@@ -296,6 +297,28 @@ textarea{resize:vertical;min-height:55px}
 </div>
 
 
+<div id="page-bolta" class="page">
+  <div class="ph"><div class="pt">세금계산서 (볼타)</div>
+    <div style="display:flex;gap:7px;">
+      <button class="btn" onclick="boltaOpenSettings()"><i class="ti ti-settings" aria-hidden="true"></i> 볼타 설정</button>
+      <button class="btn btn-p" onclick="boltaOpenIssue()"><i class="ti ti-plus" aria-hidden="true"></i> 새 세금계산서 발행</button>
+    </div>
+  </div>
+  <div id="bolta-guide" class="card" style="background:#f0f6ff;border:1px solid #b0cef0;font-size:13px;line-height:1.8;display:none;">
+    <strong style="color:#185FA5;">🔌 볼타 연동 준비</strong><br>
+    1. <a href="https://developers.bolta.io" target="_blank" style="color:#185FA5;">볼타 개발자센터</a>에서 <strong>테스트 API 키</strong>(test_로 시작)를 발급받으세요.<br>
+    2. 오른쪽 위 <strong>[볼타 설정]</strong>에 API 키를 넣고 저장 → <strong>[공급자 등록]</strong>을 누르세요.<br>
+    3. <strong>[인증서 등록]</strong>으로 공동인증서(테스트 환경은 테스트 인증서)를 등록하세요.<br>
+    4. 그 다음부터 <strong>[새 세금계산서 발행]</strong>으로 발행하면 됩니다. 테스트 키는 국세청에 전송되지 않는 가상 발행이라 마음껏 연습할 수 있어요. 실제 발행하려면 라이브 키(live_)로 바꾸면 됩니다.
+  </div>
+  <div id="bolta-status" style="font-size:12px;color:#555;margin-bottom:10px;"></div>
+  <div class="card">
+    <div class="ct">발행 내역</div>
+    <table><thead><tr><th>발행일</th><th>거래처</th><th style="text-align:right">공급가액</th><th style="text-align:right">세액</th><th style="text-align:right">합계</th><th>모드</th><th>상태</th><th>작업</th></tr></thead>
+    <tbody id="bolta-tbody"></tbody></table>
+  </div>
+</div>
+
 <div id="page-ai" class="page">
   <div class="ph"><div class="pt">AI 매출 분석</div></div>
   <div class="card">
@@ -313,6 +336,66 @@ textarea{resize:vertical;min-height:55px}
 </div>
 
 </div></div>
+
+<!-- 볼타 설정 -->
+<div id="m-bolta-set" class="mbg" onclick="bcl(event,'m-bolta-set')">
+  <div class="modal"><div class="mt">볼타 설정 <button class="btn btn-sm" onclick="cm('m-bolta-set')"><i class="ti ti-x"></i></button></div>
+    <div class="fr full"><div><label>API 키 (test_... 또는 live_...)</label><input type="text" id="bo-apikey" placeholder="볼타 개발자센터에서 발급" autocomplete="off"></div></div>
+    <div id="bo-supstate" style="font-size:12px;color:#555;margin-bottom:9px;"></div>
+    <div style="font-size:11px;color:#999;margin-bottom:6px;border-top:0.5px solid #e5e5e5;padding-top:9px;">공급자(발행자) 정보 — 세금계산서의 "공급자" 칸에 들어갑니다</div>
+    <div class="fr"><div><label>상호</label><input type="text" id="bo-sname"></div><div><label>대표자명</label><input type="text" id="bo-sceo"></div></div>
+    <div class="fr"><div><label>사업자등록번호</label><input type="text" id="bo-sbizno" placeholder="000-00-00000"></div><div><label>담당자 이메일</label><input type="email" id="bo-semail"></div></div>
+    <div class="fr full"><div><label>주소</label><input type="text" id="bo-saddr"></div></div>
+    <div class="fr"><div><label>업태</label><input type="text" id="bo-sbizcat" placeholder="예: 도소매"></div><div><label>종목</label><input type="text" id="bo-sbizitem" placeholder="예: 건축자재"></div></div>
+    <div class="fr full"><div><label>프록시 URL (선택 — 브라우저에서 직접 호출이 안 될 때만)</label><input type="text" id="bo-proxy" placeholder="비워두면 볼타 API에 직접 연결"></div></div>
+    <div class="abar" style="margin-top:12px;padding-top:12px;">
+      <button class="btn btn-p" onclick="boltaSaveSettings()"><i class="ti ti-check"></i> 저장</button>
+      <button class="btn btn-b" onclick="boltaRegisterSupplier()"><i class="ti ti-user-plus"></i> 공급자 등록 (supplierKey 발급)</button>
+      <button class="btn btn-a" onclick="boltaCertUrl()"><i class="ti ti-certificate"></i> 인증서 등록 열기</button>
+    </div>
+    <div style="font-size:11px;color:#999;margin-top:9px;line-height:1.6;">
+      API 키는 이 컴퓨터(브라우저)에만 저장됩니다. 공용 컴퓨터에서는 라이브 키를 넣지 마세요.
+    </div>
+  </div>
+</div>
+
+<!-- 볼타 발행 -->
+<div id="m-bolta-issue" class="mbg" onclick="bcl(event,'m-bolta-issue')">
+  <div class="modal modal-lg"><div class="mt">세금계산서 발행 (볼타) <button class="btn btn-sm" onclick="cm('m-bolta-issue')"><i class="ti ti-x"></i></button></div>
+    <div class="fr"><div><label>거래처 선택 (고객 관리의 거래처)</label>
+      <select id="bi-custsel" onchange="boltaFillCust()"></select></div>
+      <div><label>작성일자</label><input type="date" id="bi-date"></div></div>
+    <div class="fr"><div><label>사업자등록번호 (또는 주민번호 13자리)</label><input type="text" id="bi-bizno" placeholder="000-00-00000"></div><div><label>상호</label><input type="text" id="bi-name"></div></div>
+    <div class="fr"><div><label>대표자명</label><input type="text" id="bi-ceo"></div><div><label>이메일 (세금계산서 수신·필수)</label><input type="email" id="bi-email"></div></div>
+    <div class="fr full"><div><label>주소</label><input type="text" id="bi-addr"></div></div>
+    <div class="fr three"><div><label>업태</label><input type="text" id="bi-bizcat"></div><div><label>종목</label><input type="text" id="bi-bizitem"></div>
+      <div><label>영수/청구</label><select id="bi-purpose"><option value="CLAIM">청구</option><option value="RECEIPT">영수</option></select></div></div>
+    <div style="margin:9px 0 6px;">
+      <label style="margin-bottom:5px;">품목 (최대 5개)</label>
+      <div style="display:grid;grid-template-columns:2.4fr 0.9fr 1.3fr 1.4fr 1.2fr auto;gap:5px;margin-bottom:3px">
+        <span style="font-size:10px;color:#999">품명</span><span style="font-size:10px;color:#999;text-align:right">수량</span><span style="font-size:10px;color:#999;text-align:right">단가</span><span style="font-size:10px;color:#999;text-align:right">공급가액</span><span style="font-size:10px;color:#999;text-align:right">세액</span><span></span>
+      </div>
+      <div id="bi-items"></div>
+      <button class="btn" style="margin-top:5px;font-size:11px" onclick="boltaAddRow()"><i class="ti ti-plus"></i> 품목 추가</button>
+      <label style="display:inline-flex;align-items:center;gap:5px;font-size:12px;color:#555;margin-left:12px;cursor:pointer;">
+        <input type="checkbox" id="bi-taxfree" style="width:auto" onchange="boltaCalc()"> 면세 (전자계산서)
+      </label>
+      <div class="tot-row">
+        <span style="color:#555">공급가액 <strong id="bi-ts">0원</strong></span>
+        <span style="color:#555">세액 <strong id="bi-tv">0원</strong></span>
+        <span style="font-weight:500">합계 <strong id="bi-tt">0원</strong></span>
+      </div>
+    </div>
+    <div class="fr full"><div><label>비고 (선택)</label><input type="text" id="bi-desc" maxlength="200"></div></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:13px">
+      <span id="bi-mode" style="font-size:12px;color:#999"></span>
+      <div style="display:flex;gap:7px">
+        <button class="btn" onclick="cm('m-bolta-issue')">취소</button>
+        <button class="btn btn-p" id="bi-submit" onclick="boltaIssue()"><i class="ti ti-send"></i> 발행</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- 거래 추가 -->
 <div id="m-tx" class="mbg" onclick="bcl(event,'m-tx')">
@@ -398,6 +481,7 @@ textarea{resize:vertical;min-height:55px}
       <button class="btn" onclick="saveEstImage('jpg')" style="background:#6c3483;border-color:#6c3483;color:#fff;"><i class="ti ti-photo-down" aria-hidden="true"></i> JPG 저장</button>
       <button class="btn" id="b-approve-est" style="background:#185FA5;border-color:#185FA5;color:#fff;"><i class="ti ti-check" aria-hidden="true"></i> 승인·매출등록</button>
       <button class="btn btn-b" id="b-tax-est"><i class="ti ti-building-bank" aria-hidden="true"></i> 세금계산서</button>
+      <button class="btn" id="b-bolta-est" style="background:#0F6E56;border-color:#0F6E56;color:#fff;"><i class="ti ti-bolt" aria-hidden="true"></i> 볼타 발행</button>
       <button class="btn btn-a" id="b-sms-est"><i class="ti ti-message" aria-hidden="true"></i> 문자 발송</button>
       <button class="btn" onclick="cm('m-est')">닫기</button>
     </div>
@@ -1115,6 +1199,7 @@ function openEst(cust,items,phone,estId){
   _ec={cust,items,phone:phone||'',estId:estId||null};
   document.getElementById('est-content').innerHTML=estHTML(cust,items,null,estId);
   document.getElementById('b-tax-est').onclick=()=>{cm('m-est');_tc={cust,items};launchEtaxFill();};
+  document.getElementById('b-bolta-est').onclick=()=>{cm('m-est');boltaOpenFromEst(cust,items);};
   document.getElementById('b-sms-est').onclick=()=>{cm('m-est');openSmsFromName(cust,'견적서',items)};
   // 승인·매출등록 버튼 — estList에서 해당 견적 찾아서 처리
   const approveBtn = document.getElementById('b-approve-est');
@@ -1725,6 +1810,319 @@ function runAI(key){
   var el = document.getElementById('bm-link');
   if(el) el.href = 'javascript:' + bm;
 })();
+
+// ════════════════════════════════════════════════════════════
+//  볼타(Bolta) 전자세금계산서 API 연동
+//  문서: https://docs.bolta.io  |  API 서버: https://xapi.bolta.io
+// ════════════════════════════════════════════════════════════
+const BOLTA_CFG_KEY = 'bolta_cfg_v1';
+const BOLTA_LOG_KEY = 'bolta_log_v1';
+
+let boltaCfg = Object.assign({
+  apiKey:'', supplierKey:'', proxy:'',
+  sname:S.name, sceo:S.owner, sbizno:S.biz, semail:CLOUD_USER,
+  saddr:S.addr, sbizcat:'', sbizitem:''
+}, JSON.parse(localStorage.getItem(BOLTA_CFG_KEY)||'{}'));
+
+let boltaLog = JSON.parse(localStorage.getItem(BOLTA_LOG_KEY)||'[]');
+
+function boltaSaveCfg(){ localStorage.setItem(BOLTA_CFG_KEY, JSON.stringify(boltaCfg)); }
+function boltaSaveLog(){ localStorage.setItem(BOLTA_LOG_KEY, JSON.stringify(boltaLog)); }
+const boltaDigits = s => (s||'').replace(/[^0-9]/g,'');
+const boltaLive = () => (boltaCfg.apiKey||'').startsWith('live_');
+
+async function boltaApi(path, method, body, extraHeaders){
+  if(!boltaCfg.apiKey) throw new Error('볼타 API 키가 없습니다. [볼타 설정]에서 먼저 입력해주세요.');
+  const base = (boltaCfg.proxy||'').trim().replace(/\/+$/,'') || 'https://xapi.bolta.io';
+  const headers = Object.assign({
+    'Authorization':'Basic '+btoa(boltaCfg.apiKey+':'),
+    'Content-Type':'application/json'
+  }, extraHeaders||{});
+  let res;
+  try{
+    res = await fetch(base+path, {method:method||'GET', headers, body: body?JSON.stringify(body):undefined});
+  }catch(e){
+    throw new Error('볼타 서버에 연결하지 못했습니다.\n(브라우저 차단(CORS)일 수 있습니다 — 이 경우 프록시 설정이 필요하니 알려주세요.)\n원인: '+e.message);
+  }
+  let data = null;
+  try{ data = await res.json(); }catch(e){}
+  if(!res.ok){
+    const msg = data&&data.message ? data.message+(data.code?' ['+data.code+']':'') : 'HTTP '+res.status;
+    throw new Error(msg);
+  }
+  return data;
+}
+
+// ── 설정 화면
+function boltaOpenSettings(){
+  document.getElementById('bo-apikey').value = boltaCfg.apiKey;
+  document.getElementById('bo-sname').value = boltaCfg.sname;
+  document.getElementById('bo-sceo').value = boltaCfg.sceo;
+  document.getElementById('bo-sbizno').value = boltaCfg.sbizno;
+  document.getElementById('bo-semail').value = boltaCfg.semail;
+  document.getElementById('bo-saddr').value = boltaCfg.saddr;
+  document.getElementById('bo-sbizcat').value = boltaCfg.sbizcat;
+  document.getElementById('bo-sbizitem').value = boltaCfg.sbizitem;
+  document.getElementById('bo-proxy').value = boltaCfg.proxy;
+  boltaSupState();
+  om('m-bolta-set');
+}
+function boltaSupState(){
+  const el = document.getElementById('bo-supstate');
+  el.innerHTML = boltaCfg.supplierKey
+    ? '✅ 공급자 등록 완료 (supplierKey: <code>'+boltaCfg.supplierKey+'</code>)'
+    : '⚠️ 아직 공급자 등록 전입니다. 정보 저장 후 [공급자 등록]을 눌러주세요.';
+}
+function boltaReadSettings(){
+  boltaCfg.apiKey = document.getElementById('bo-apikey').value.trim();
+  boltaCfg.sname = document.getElementById('bo-sname').value.trim();
+  boltaCfg.sceo = document.getElementById('bo-sceo').value.trim();
+  boltaCfg.sbizno = document.getElementById('bo-sbizno').value.trim();
+  boltaCfg.semail = document.getElementById('bo-semail').value.trim();
+  boltaCfg.saddr = document.getElementById('bo-saddr').value.trim();
+  boltaCfg.sbizcat = document.getElementById('bo-sbizcat').value.trim();
+  boltaCfg.sbizitem = document.getElementById('bo-sbizitem').value.trim();
+  boltaCfg.proxy = document.getElementById('bo-proxy').value.trim();
+}
+function boltaSaveSettings(){
+  const prevKey = boltaCfg.apiKey;
+  boltaReadSettings();
+  if(boltaCfg.apiKey !== prevKey) boltaCfg.supplierKey = ''; // 키가 바뀌면 supplierKey도 새로 발급 필요
+  boltaSaveCfg(); boltaSupState(); renderBolta();
+  alert('저장했습니다.'+(boltaCfg.apiKey&&!boltaCfg.supplierKey?'\n다음 단계: [공급자 등록]을 눌러주세요.':''));
+}
+async function boltaRegisterSupplier(){
+  boltaReadSettings(); boltaSaveCfg();
+  const bizno = boltaDigits(boltaCfg.sbizno);
+  if(!boltaCfg.apiKey) return alert('API 키를 먼저 입력해주세요.');
+  if(bizno.length!==10) return alert('공급자 사업자등록번호(10자리)를 확인해주세요.');
+  if(!boltaCfg.sname||!boltaCfg.sceo) return alert('상호와 대표자명을 입력해주세요.');
+  try{
+    const r = await boltaApi('/v1/suppliers','POST',{
+      identificationNumber: bizno,
+      organizationName: boltaCfg.sname,
+      representativeName: boltaCfg.sceo
+    });
+    boltaCfg.supplierKey = r.supplierKey;
+    boltaSaveCfg(); boltaSupState(); renderBolta();
+    alert('공급자 등록 완료!\nsupplierKey: '+r.supplierKey+'\n\n다음 단계: [인증서 등록 열기]로 공동인증서를 등록하세요.\n(테스트 키면 테스트 인증서를 사용할 수 있습니다.)');
+  }catch(e){ alert('공급자 등록 실패:\n'+e.message); }
+}
+async function boltaCertUrl(){
+  boltaReadSettings(); boltaSaveCfg();
+  if(!boltaCfg.supplierKey) return alert('먼저 [공급자 등록]으로 supplierKey를 발급받아주세요.');
+  try{
+    const r = await boltaApi('/v1/suppliers/'+encodeURIComponent(boltaCfg.supplierKey)+'/certificates/url','GET');
+    window.open(r.url,'_blank');
+  }catch(e){ alert('인증서 등록 URL 조회 실패:\n'+e.message); }
+}
+
+// ── 발행 화면
+function boltaOpenIssue(pref){
+  const sel = document.getElementById('bi-custsel');
+  sel.innerHTML = '<option value="">— 직접 입력 —</option>' +
+    bizList.map((c,i)=>`<option value="${i}">${c.name}${c.bizno?' ('+c.bizno+')':''}</option>`).join('');
+  document.getElementById('bi-date').value = new Date().toISOString().slice(0,10);
+  document.getElementById('bi-items').innerHTML='';
+  document.getElementById('bi-taxfree').checked=false;
+  document.getElementById('bi-desc').value='';
+  document.getElementById('bi-purpose').value='CLAIM';
+  ['bi-bizno','bi-name','bi-ceo','bi-email','bi-addr','bi-bizcat','bi-bizitem'].forEach(id=>document.getElementById(id).value='');
+  if(pref && pref.custName){
+    const i = bizList.findIndex(c=>c.name===pref.custName);
+    if(i>=0){ sel.value=String(i); boltaFillCust(); }
+    else document.getElementById('bi-name').value = pref.custName;
+  }
+  if(pref && pref.items && pref.items.length){
+    pref.items.slice(0,5).forEach(it=>boltaAddRow(it.n, it.q, it.p));
+  } else {
+    boltaAddRow();
+  }
+  document.getElementById('bi-mode').textContent = !boltaCfg.apiKey ? '⚠️ API 키 미설정' : (boltaLive()?'🔴 라이브 모드 — 실제 국세청 전송':'🟢 테스트 모드 — 가상 발행');
+  boltaCalc();
+  om('m-bolta-issue');
+}
+function boltaFillCust(){
+  const i = document.getElementById('bi-custsel').value;
+  if(i==='') return;
+  const c = bizList[parseInt(i)];
+  document.getElementById('bi-bizno').value = c.bizno||'';
+  document.getElementById('bi-name').value = c.name||'';
+  document.getElementById('bi-ceo').value = c.ceo||'';
+  document.getElementById('bi-email').value = c.email||'';
+  document.getElementById('bi-addr').value = c.addr||'';
+  document.getElementById('bi-bizcat').value = c.bizCategory||'';
+  document.getElementById('bi-bizitem').value = c.bizItem||'';
+}
+function boltaAddRow(name, qty, price){
+  const wrap = document.getElementById('bi-items');
+  if(wrap.children.length>=5) return alert('품목은 최대 5개까지입니다.');
+  const div = document.createElement('div');
+  div.style.cssText='display:grid;grid-template-columns:2.4fr 0.9fr 1.3fr 1.4fr 1.2fr auto;gap:5px;margin-bottom:5px;align-items:center';
+  div.innerHTML = `<input type="text" class="bi-n" placeholder="품명" value="${name||''}">
+    <input type="number" class="bi-q" placeholder="1" style="text-align:right" value="${qty||''}" oninput="boltaRowCalc(this)">
+    <input type="number" class="bi-p" placeholder="0" style="text-align:right" value="${price||''}" oninput="boltaRowCalc(this)">
+    <input type="number" class="bi-s" placeholder="공급가액" style="text-align:right" oninput="boltaCalc()">
+    <input type="number" class="bi-t" placeholder="세액" style="text-align:right" oninput="boltaCalc()">
+    <button class="idel" onclick="this.parentElement.remove();boltaCalc()"><i class="ti ti-x"></i></button>`;
+  wrap.appendChild(div);
+  if(qty&&price) boltaRowCalc(div.querySelector('.bi-q'));
+}
+function boltaRowCalc(inp){
+  const row = inp.parentElement;
+  const q = parseInt(row.querySelector('.bi-q').value)||0;
+  const p = parseInt(row.querySelector('.bi-p').value)||0;
+  if(q&&p){
+    const s = q*p;
+    row.querySelector('.bi-s').value = s;
+    row.querySelector('.bi-t').value = document.getElementById('bi-taxfree').checked ? '' : Math.round(s*0.1);
+  }
+  boltaCalc();
+}
+function boltaCalc(){
+  const free = document.getElementById('bi-taxfree').checked;
+  let ts=0, tv=0;
+  document.querySelectorAll('#bi-items > div').forEach(row=>{
+    if(free) row.querySelector('.bi-t').value='';
+    ts += parseInt(row.querySelector('.bi-s').value)||0;
+    tv += parseInt(row.querySelector('.bi-t').value)||0;
+  });
+  document.getElementById('bi-ts').textContent = ts.toLocaleString()+'원';
+  document.getElementById('bi-tv').textContent = tv.toLocaleString()+'원';
+  document.getElementById('bi-tt').textContent = (ts+tv).toLocaleString()+'원';
+}
+function boltaOpenFromEst(cust, items){
+  gp('bolta', document.getElementById('nav-bolta'));
+  boltaOpenIssue({custName:cust, items:items});
+}
+
+async function boltaIssue(){
+  if(!boltaCfg.apiKey) return alert('[볼타 설정]에서 API 키를 먼저 입력해주세요.');
+  if(!boltaCfg.supplierKey) return alert('[볼타 설정]에서 [공급자 등록]을 먼저 해주세요.');
+  const date = document.getElementById('bi-date').value;
+  const idNum = boltaDigits(document.getElementById('bi-bizno').value);
+  const name = document.getElementById('bi-name').value.trim();
+  const ceo = document.getElementById('bi-ceo').value.trim();
+  const email = document.getElementById('bi-email').value.trim();
+  if(!date) return alert('작성일자를 입력해주세요.');
+  if(!(idNum.length===10||idNum.length===13)) return alert('공급받는자 사업자번호(10자리) 또는 주민번호(13자리)를 확인해주세요.');
+  if(!name||!ceo) return alert('공급받는자 상호와 대표자명을 입력해주세요.');
+  if(!email) return alert('공급받는자 이메일이 필요합니다. (세금계산서 수신용)\n고객 관리에서 이메일을 등록해두면 자동으로 채워집니다.');
+  const free = document.getElementById('bi-taxfree').checked;
+  const items=[];
+  let bad=null;
+  document.querySelectorAll('#bi-items > div').forEach(row=>{
+    const n = row.querySelector('.bi-n').value.trim();
+    const s = parseInt(row.querySelector('.bi-s').value)||0;
+    if(!n && !s) return; // 빈 줄 무시
+    if(!n||s<1){ bad='품명과 공급가액을 확인해주세요.'; return; }
+    const q = parseInt(row.querySelector('.bi-q').value)||null;
+    const p = parseInt(row.querySelector('.bi-p').value)||null;
+    const t = free ? null : (parseInt(row.querySelector('.bi-t').value)||null);
+    items.push({date:date, name:n, unitPrice:p, quantity:q, supplyCost:s, tax:t});
+  });
+  if(bad) return alert(bad);
+  if(!items.length) return alert('품목을 1개 이상 입력해주세요.');
+  const supBizno = boltaDigits(boltaCfg.sbizno);
+  const payload = {
+    date: date,
+    purpose: document.getElementById('bi-purpose').value,
+    supplier: {
+      identificationNumber: supBizno,
+      organizationName: boltaCfg.sname,
+      representativeName: boltaCfg.sceo,
+      address: boltaCfg.saddr||null,
+      businessType: boltaCfg.sbizcat||null,
+      businessItem: boltaCfg.sbizitem||null,
+      manager: { email: boltaCfg.semail }
+    },
+    supplied: {
+      identificationNumber: idNum,
+      organizationName: name,
+      representativeName: ceo,
+      address: document.getElementById('bi-addr').value.trim()||null,
+      businessType: document.getElementById('bi-bizcat').value.trim()||null,
+      businessItem: document.getElementById('bi-bizitem').value.trim()||null,
+      managers: [{ email: email }]
+    },
+    items: items
+  };
+  const desc = document.getElementById('bi-desc').value.trim();
+  if(desc && idNum.length===10) payload.description = desc;
+  const ref = 'maeil-'+Date.now();
+  const live = boltaLive();
+  if(live && !confirm('라이브 모드입니다. 실제로 국세청에 전송되는 발행입니다.\n진행할까요?')) return;
+  const btn = document.getElementById('bi-submit');
+  btn.disabled = true; btn.textContent = '발행 중...';
+  try{
+    const r = await boltaApi('/v1/taxInvoices/issue','POST',payload,{
+      'Supplier-Key': boltaCfg.supplierKey,
+      'Bolta-Client-Reference-Id': ref
+    });
+    const sSum = items.reduce((a,i)=>a+i.supplyCost,0);
+    const tSum = items.reduce((a,i)=>a+(i.tax||0),0);
+    boltaLog.unshift({key:r.issuanceKey, ref:ref, date:date, cust:name, supply:sSum, tax:tSum, total:sSum+tSum, live:live, status:'발행요청', nts:''});
+    boltaSaveLog();
+    // 기존 세금계산서 내역(taxList)에도 기록
+    taxSeq++;
+    taxList.push({num:'BOLTA-'+String(taxSeq).padStart(3,'0'), cust:name, totalAmt:sSum+tSum, date:date, status:live?'볼타 발행요청':'볼타 테스트발행', type:'매출전자'});
+    saveData();
+    cm('m-bolta-issue'); renderBolta();
+    alert('발행 요청 완료!\nissuanceKey: '+r.issuanceKey+'\n\n잠시 후 [상태확인]을 누르면 국세청 승인번호를 확인할 수 있습니다.'+(live?'':'\n(테스트 모드라 실제 전송은 되지 않습니다.)'));
+  }catch(e){
+    alert('발행 실패:\n'+e.message);
+  }finally{
+    btn.disabled = false; btn.innerHTML = '<i class="ti ti-send"></i> 발행';
+  }
+}
+
+async function boltaCheck(i){
+  const it = boltaLog[i];
+  if(!it) return;
+  try{
+    const r = await boltaApi('/v1/taxInvoices/'+encodeURIComponent(it.key),'GET');
+    it.status = '발행완료';
+    it.nts = r.ntsTransactionId||'';
+    boltaSaveLog(); renderBolta();
+    alert('발행 완료!\n국세청 승인번호: '+(r.ntsTransactionId||'-'));
+  }catch(e){
+    alert('아직 발행 완료 전이거나 조회에 실패했습니다.\n'+e.message);
+  }
+}
+function boltaDel(i){
+  if(!confirm('이 기록을 목록에서 지울까요? (발행 자체가 취소되지는 않습니다)')) return;
+  boltaLog.splice(i,1); boltaSaveLog(); renderBolta();
+}
+
+function renderBolta(){
+  const guide = document.getElementById('bolta-guide');
+  if(guide) guide.style.display = boltaCfg.apiKey ? 'none' : 'block';
+  const st = document.getElementById('bolta-status');
+  if(st){
+    st.innerHTML = boltaCfg.apiKey
+      ? `${boltaLive()?'🔴 라이브 모드':'🟢 테스트 모드'} · 공급자: ${boltaCfg.sname} (${boltaCfg.sbizno}) · ${boltaCfg.supplierKey?'공급자 등록됨':'⚠️ 공급자 미등록'}`
+      : '';
+  }
+  const tb = document.getElementById('bolta-tbody');
+  if(!tb) return;
+  tb.innerHTML = boltaLog.length ? boltaLog.map((x,i)=>`
+    <tr>
+      <td>${x.date}</td>
+      <td style="font-weight:500">${x.cust}</td>
+      <td style="text-align:right">${x.supply.toLocaleString()}원</td>
+      <td style="text-align:right">${x.tax.toLocaleString()}원</td>
+      <td style="text-align:right;font-weight:500">${x.total.toLocaleString()}원</td>
+      <td>${x.live?'<span class="badge bd">라이브</span>':'<span class="badge bi">테스트</span>'}</td>
+      <td>${x.status==='발행완료'?'<span class="badge bs">발행완료</span>':'<span class="badge bw">'+x.status+'</span>'}${x.nts?'<div style="font-size:10px;color:#999">'+x.nts+'</div>':''}</td>
+      <td style="display:flex;gap:4px;">
+        <button class="btn btn-sm" onclick="boltaCheck(${i})"><i class="ti ti-refresh"></i> 상태확인</button>
+        <button class="btn btn-sm" onclick="boltaDel(${i})" style="color:#A32D2D"><i class="ti ti-trash"></i></button>
+      </td>
+    </tr>`).join('')
+    : '<tr><td colspan="8" style="color:#999;text-align:center;padding:18px">아직 발행 내역이 없습니다.</td></tr>';
+}
+renderBolta();
+
 </script>
 </body>
 </html>
