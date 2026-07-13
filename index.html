@@ -90,6 +90,7 @@ tr:last-child td{border-bottom:none}
 .modal{background:#ffffff;border-radius:16px;padding:22px;width:560px;border:0.5px solid #edeff2;margin-bottom:40px}
 .modal-lg{width:780px}
 .modal-est{width:780px;padding:16px;max-height:92vh;overflow-y:auto;}
+.modal-tax{width:1040px;max-width:calc(100vw - 32px);padding:16px;max-height:94vh;overflow-y:auto}
 .mt{font-size:17px;font-weight:500;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center}
 .fr{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:9px}
 .fr.full{grid-template-columns:1fr}.fr.three{grid-template-columns:1fr 1fr 1fr}
@@ -162,8 +163,8 @@ textarea{resize:vertical;min-height:55px}
 .tdt td:nth-child(2){text-align:center}
 .td-total{display:flex;justify-content:flex-end;gap:16px;font-size:11px;padding:7px 0;border-top:1px solid #ccc}
 .td-bank{font-size:10px;color:#888 !important;margin-top:7px;border-top:0.5px solid #eee;padding-top:6px}
-.tax-doc{width:100%;background:#fff;color:#111;font-family:'Malgun Gothic','맑은 고딕',Arial,sans-serif;border:1px solid #cfd5dd;border-radius:7px;overflow:hidden}
-.tax-doc *{box-sizing:border-box}.tax-doc table{width:100%;border-collapse:collapse;table-layout:fixed}.tax-doc th,.tax-doc td{border-right:1px solid #dfe3e8;border-bottom:1px solid #dfe3e8;padding:11px 10px;font-size:12px;text-align:center;vertical-align:middle}.tax-doc tr>*:last-child{border-right:0}.tax-doc .tax-title{font-size:17px;font-weight:800;height:50px}.tax-doc .tax-label{background:#f7f8fa;color:#687385;font-weight:500}.tax-doc .tax-sup-head{background:#ffd7d7;color:#ff4545;font-weight:800;height:48px}.tax-doc .tax-buy-head{background:#cce7ff;color:#087cf0;font-weight:800;height:48px}.tax-doc .tax-sup-label{background:#fff5f5;color:#ff4545;font-weight:700}.tax-doc .tax-buy-label{background:#f2f8ff;color:#087cf0;font-weight:700}.tax-doc .tax-value{text-align:left;background:#fff}.tax-doc .tax-items th{background:#f7f8fa;color:#687385;font-weight:500}.tax-doc .tax-items td{height:44px}.tax-doc .tax-items td:nth-child(3){text-align:left}.tax-doc .tax-total-label{background:#f7f8fa;color:#687385;font-weight:500}.tax-doc .tax-total-value{font-size:14px}.tax-doc .tax-claim{font-size:13px}.tax-doc .tax-last-row>*{border-bottom:0}
+.tax-doc{width:100%;background:#fff;color:#111;font-family:'Malgun Gothic','맑은 고딕',Arial,sans-serif;border:1px solid #cfd5dd;border-radius:8px;overflow:hidden}
+.tax-doc *{box-sizing:border-box}.tax-doc table{width:100%;border-collapse:collapse;table-layout:fixed}.tax-doc th,.tax-doc td{border-right:1px solid #dfe3e8;border-bottom:1px solid #dfe3e8;padding:12px 11px;height:48px;font-size:13px;font-weight:400;text-align:center;vertical-align:middle;line-height:1.35}.tax-doc tr>*:last-child{border-right:0}.tax-doc .tax-title{font-size:18px;font-weight:800;height:52px}.tax-doc .tax-label{background:#f7f8fa;color:#687385;font-weight:500}.tax-doc .tax-sup-head{background:#ffd6d6;color:#ff4545;font-weight:800;height:50px}.tax-doc .tax-buy-head{background:#c9e5ff;color:#087cf0;font-weight:800;height:50px}.tax-doc .tax-sup-label{background:#fff3f3;color:#ff4545;font-weight:700}.tax-doc .tax-buy-label{background:#eef7ff;color:#087cf0;font-weight:700}.tax-doc .tax-value{text-align:left;background:#fff;padding-left:13px}.tax-doc .tax-items th{background:#f7f8fa;color:#687385;font-weight:500;height:40px;padding:8px 6px}.tax-doc .tax-items td{height:47px;padding:9px 6px}.tax-doc .tax-items td:nth-child(3){text-align:center}.tax-doc .tax-total-label{background:#f7f8fa;color:#687385;font-weight:500;height:42px}.tax-doc .tax-total-value{font-size:14px}.tax-doc .tax-claim{font-size:13px}.tax-doc .tax-last-row>*{border-bottom:0}
 /* sms */
 .sms-box{background:#E6F1FB;border-radius:10px 10px 10px 2px;padding:11px 13px;font-size:12px;line-height:1.7;color:#042C53;margin:8px 0;max-width:320px}
 .sms-note{font-size:11px;color:#999999;margin-top:5px}
@@ -389,7 +390,7 @@ textarea{resize:vertical;min-height:55px}
 
 <!-- 발행 세금계산서 미리보기 -->
 <div id="m-bolta-view" class="mbg" onclick="bcl(event,'m-bolta-view')">
-  <div class="modal modal-est"><div class="mt">세금계산서 미리보기 <button class="btn btn-sm" onclick="cm('m-bolta-view')"><i class="ti ti-x"></i></button></div>
+  <div class="modal modal-tax"><div class="mt">세금계산서 미리보기 <button class="btn btn-sm" onclick="cm('m-bolta-view')"><i class="ti ti-x"></i></button></div>
     <div id="bolta-view-content"></div>
     <div class="abar">
       <button class="btn btn-p" onclick="doPrint('bolta-view-content','세금계산서')"><i class="ti ti-printer"></i> 인쇄</button>
@@ -1461,8 +1462,8 @@ function doPrint(contentId,title){
   .tdt td:nth-child(2){text-align:center}
   .td-total{display:flex;justify-content:flex-end;gap:16px;font-size:11px;padding:7px 0;border-top:1px solid #ccc}
   .td-bank{font-size:10px;color:#888;margin-top:7px;border-top:0.5px solid #eee;padding-top:6px}
-  .tax-doc{width:740px;background:#fff;color:#111;font-family:'Malgun Gothic','맑은 고딕',Arial,sans-serif;border:1px solid #cfd5dd;border-radius:7px;overflow:hidden}
-  .tax-doc *{box-sizing:border-box}.tax-doc table{width:100%;border-collapse:collapse;table-layout:fixed}.tax-doc th,.tax-doc td{border-right:1px solid #dfe3e8;border-bottom:1px solid #dfe3e8;padding:11px 10px;font-size:12px;text-align:center;vertical-align:middle}.tax-doc tr>*:last-child{border-right:0}.tax-doc .tax-title{font-size:17px;font-weight:800;height:50px}.tax-doc .tax-label{background:#f7f8fa;color:#687385;font-weight:500}.tax-doc .tax-sup-head{background:#ffd7d7;color:#ff4545;font-weight:800;height:48px}.tax-doc .tax-buy-head{background:#cce7ff;color:#087cf0;font-weight:800;height:48px}.tax-doc .tax-sup-label{background:#fff5f5;color:#ff4545;font-weight:700}.tax-doc .tax-buy-label{background:#f2f8ff;color:#087cf0;font-weight:700}.tax-doc .tax-value{text-align:left;background:#fff}.tax-doc .tax-items th{background:#f7f8fa;color:#687385;font-weight:500}.tax-doc .tax-items td{height:44px}.tax-doc .tax-items td:nth-child(3){text-align:left}.tax-doc .tax-total-label{background:#f7f8fa;color:#687385;font-weight:500}.tax-doc .tax-total-value{font-size:14px}.tax-doc .tax-claim{font-size:13px}.tax-doc .tax-last-row>*{border-bottom:0}
+  .tax-doc{width:980px;max-width:100%;background:#fff;color:#111;font-family:'Malgun Gothic','맑은 고딕',Arial,sans-serif;border:1px solid #cfd5dd;border-radius:8px;overflow:hidden}
+  .tax-doc *{box-sizing:border-box}.tax-doc table{width:100%;border-collapse:collapse;table-layout:fixed}.tax-doc th,.tax-doc td{border-right:1px solid #dfe3e8;border-bottom:1px solid #dfe3e8;padding:12px 11px;height:48px;font-size:13px;font-weight:400;text-align:center;vertical-align:middle;line-height:1.35}.tax-doc tr>*:last-child{border-right:0}.tax-doc .tax-title{font-size:18px;font-weight:800;height:52px}.tax-doc .tax-label{background:#f7f8fa;color:#687385;font-weight:500}.tax-doc .tax-sup-head{background:#ffd6d6;color:#ff4545;font-weight:800;height:50px}.tax-doc .tax-buy-head{background:#c9e5ff;color:#087cf0;font-weight:800;height:50px}.tax-doc .tax-sup-label{background:#fff3f3;color:#ff4545;font-weight:700}.tax-doc .tax-buy-label{background:#eef7ff;color:#087cf0;font-weight:700}.tax-doc .tax-value{text-align:left;background:#fff;padding-left:13px}.tax-doc .tax-items th{background:#f7f8fa;color:#687385;font-weight:500;height:40px;padding:8px 6px}.tax-doc .tax-items td{height:47px;padding:9px 6px}.tax-doc .tax-items td:nth-child(3){text-align:center}.tax-doc .tax-total-label{background:#f7f8fa;color:#687385;font-weight:500;height:42px}.tax-doc .tax-total-value{font-size:14px}.tax-doc .tax-claim{font-size:13px}.tax-doc .tax-last-row>*{border-bottom:0}
   </style></head><body>${html}</body></html>`);
   win.document.close();
   setTimeout(()=>{win.focus();win.print();},600);
@@ -2162,16 +2163,16 @@ function boltaInvoiceHTML(x){
   const supplier=inv.supplier||{organizationName:boltaCfg.sname,representativeName:boltaCfg.sceo,identificationNumber:boltaCfg.sbizno,address:boltaCfg.saddr,businessType:boltaCfg.sbizcat,businessItem:boltaCfg.sbizitem};
   const supplied=inv.supplied||{organizationName:x.cust};
   const items=(inv.items&&inv.items.length)?inv.items:[{date:x.date,name:'발행 품목',quantity:'',unitPrice:'',supplyCost:x.supply,tax:x.tax}];
-  const dp=(x.date||'').split('-');
   const supEmail=supplier.manager?.email||boltaCfg.semail||'';
   const buyEmail=supplied.managers?.[0]?.email||'';
-  const rows=items.map(it=>`<tr><td>${dp[1]||''}</td><td>${dp[2]||''}</td><td>${it.name||''}</td><td></td><td>${it.quantity??''}</td><td>${it.unitPrice?Number(it.unitPrice).toLocaleString():''}</td><td>${Number(it.supplyCost||0).toLocaleString()}</td><td>${Number(it.tax||0).toLocaleString()}</td><td></td></tr>`).join('');
+  const bizNo=v=>{const d=String(v||'').replace(/\D/g,'');return d.length===10?d.slice(0,3)+'-'+d.slice(3,5)+'-'+d.slice(5):v||''};
+  const rows=items.map(it=>{const idp=(it.date||x.date||'').split('-');return `<tr><td>${idp[1]||''}</td><td>${idp[2]||''}</td><td>${it.name||''}</td><td>${it.specification||''}</td><td>${it.quantity??''}</td><td>${it.unitPrice?Number(it.unitPrice).toLocaleString():''}</td><td>${Number(it.supplyCost||0).toLocaleString()}</td><td>${Number(it.tax||0).toLocaleString()}</td><td>${it.description||''}</td></tr>`}).join('');
   const value=v=>v||'';
   return `<div class="tax-doc"><table>
     <colgroup><col style="width:10.5%"><col style="width:14%"><col style="width:10.5%"><col style="width:15%"><col style="width:10.5%"><col style="width:14%"><col style="width:10.5%"><col style="width:15%"></colgroup>
     <tr><th colspan="4" class="tax-title">전자세금계산서</th><th class="tax-label">승인번호</th><td colspan="3">${x.nts||x.key||'-'}</td></tr>
     <tr><th colspan="4" class="tax-sup-head">공급자</th><th colspan="4" class="tax-buy-head">공급받는자</th></tr>
-    <tr><th class="tax-sup-label">등록번호</th><td>${value(supplier.identificationNumber)}</td><th class="tax-sup-label">종사업장 번호</th><td></td><th class="tax-buy-label">등록번호</th><td>${value(supplied.identificationNumber)}</td><th class="tax-buy-label">종사업장 번호</th><td></td></tr>
+    <tr><th class="tax-sup-label">등록번호</th><td>${bizNo(supplier.identificationNumber)}</td><th class="tax-sup-label">종사업장 번호</th><td>${value(supplier.taxRegistrationId)}</td><th class="tax-buy-label">등록번호</th><td>${bizNo(supplied.identificationNumber)}</td><th class="tax-buy-label">종사업장 번호</th><td>${value(supplied.taxRegistrationId)}</td></tr>
     <tr><th class="tax-sup-label">상호</th><td>${value(supplier.organizationName)}</td><th class="tax-sup-label">성명</th><td>${value(supplier.representativeName)}</td><th class="tax-buy-label">상호</th><td>${value(supplied.organizationName)}</td><th class="tax-buy-label">성명</th><td>${value(supplied.representativeName)}</td></tr>
     <tr><th class="tax-sup-label">사업장 주소</th><td colspan="3" class="tax-value">${value(supplier.address)}</td><th class="tax-buy-label">사업장 주소</th><td colspan="3" class="tax-value">${value(supplied.address)}</td></tr>
     <tr><th class="tax-sup-label">업태</th><td>${value(supplier.businessType)}</td><th class="tax-sup-label">종목</th><td>${value(supplier.businessItem)}</td><th class="tax-buy-label">업태</th><td>${value(supplied.businessType)}</td><th class="tax-buy-label">종목</th><td>${value(supplied.businessItem)}</td></tr>
