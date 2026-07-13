@@ -162,6 +162,8 @@ textarea{resize:vertical;min-height:55px}
 .tdt td:nth-child(2){text-align:center}
 .td-total{display:flex;justify-content:flex-end;gap:16px;font-size:11px;padding:7px 0;border-top:1px solid #ccc}
 .td-bank{font-size:10px;color:#888 !important;margin-top:7px;border-top:0.5px solid #eee;padding-top:6px}
+.tax-doc{width:100%;background:#fff;color:#111;font-family:'Malgun Gothic','맑은 고딕',Arial,sans-serif;border:1px solid #cfd5dd;border-radius:7px;overflow:hidden}
+.tax-doc *{box-sizing:border-box}.tax-doc table{width:100%;border-collapse:collapse;table-layout:fixed}.tax-doc th,.tax-doc td{border-right:1px solid #dfe3e8;border-bottom:1px solid #dfe3e8;padding:11px 10px;font-size:12px;text-align:center;vertical-align:middle}.tax-doc tr>*:last-child{border-right:0}.tax-doc .tax-title{font-size:17px;font-weight:800;height:50px}.tax-doc .tax-label{background:#f7f8fa;color:#687385;font-weight:500}.tax-doc .tax-sup-head{background:#ffd7d7;color:#ff4545;font-weight:800;height:48px}.tax-doc .tax-buy-head{background:#cce7ff;color:#087cf0;font-weight:800;height:48px}.tax-doc .tax-sup-label{background:#fff5f5;color:#ff4545;font-weight:700}.tax-doc .tax-buy-label{background:#f2f8ff;color:#087cf0;font-weight:700}.tax-doc .tax-value{text-align:left;background:#fff}.tax-doc .tax-items th{background:#f7f8fa;color:#687385;font-weight:500}.tax-doc .tax-items td{height:44px}.tax-doc .tax-items td:nth-child(3){text-align:left}.tax-doc .tax-total-label{background:#f7f8fa;color:#687385;font-weight:500}.tax-doc .tax-total-value{font-size:14px}.tax-doc .tax-claim{font-size:13px}.tax-doc .tax-last-row>*{border-bottom:0}
 /* sms */
 .sms-box{background:#E6F1FB;border-radius:10px 10px 10px 2px;padding:11px 13px;font-size:12px;line-height:1.7;color:#042C53;margin:8px 0;max-width:320px}
 .sms-note{font-size:11px;color:#999999;margin-top:5px}
@@ -391,7 +393,7 @@ textarea{resize:vertical;min-height:55px}
     <div id="bolta-view-content"></div>
     <div class="abar">
       <button class="btn btn-p" onclick="doPrint('bolta-view-content','세금계산서')"><i class="ti ti-printer"></i> 인쇄</button>
-      <button class="btn" onclick="saveBoltaImage()" style="background:#6c3483;border-color:#6c3483;color:#fff;"><i class="ti ti-photo-down"></i> 이미지 저장</button>
+      <button class="btn" onclick="copyBoltaImage()" style="background:#6c3483;border-color:#6c3483;color:#fff;"><i class="ti ti-photo"></i> 이미지 복사</button>
       <button class="btn" onclick="cm('m-bolta-view')">닫기</button>
     </div>
   </div>
@@ -1459,6 +1461,8 @@ function doPrint(contentId,title){
   .tdt td:nth-child(2){text-align:center}
   .td-total{display:flex;justify-content:flex-end;gap:16px;font-size:11px;padding:7px 0;border-top:1px solid #ccc}
   .td-bank{font-size:10px;color:#888;margin-top:7px;border-top:0.5px solid #eee;padding-top:6px}
+  .tax-doc{width:740px;background:#fff;color:#111;font-family:'Malgun Gothic','맑은 고딕',Arial,sans-serif;border:1px solid #cfd5dd;border-radius:7px;overflow:hidden}
+  .tax-doc *{box-sizing:border-box}.tax-doc table{width:100%;border-collapse:collapse;table-layout:fixed}.tax-doc th,.tax-doc td{border-right:1px solid #dfe3e8;border-bottom:1px solid #dfe3e8;padding:11px 10px;font-size:12px;text-align:center;vertical-align:middle}.tax-doc tr>*:last-child{border-right:0}.tax-doc .tax-title{font-size:17px;font-weight:800;height:50px}.tax-doc .tax-label{background:#f7f8fa;color:#687385;font-weight:500}.tax-doc .tax-sup-head{background:#ffd7d7;color:#ff4545;font-weight:800;height:48px}.tax-doc .tax-buy-head{background:#cce7ff;color:#087cf0;font-weight:800;height:48px}.tax-doc .tax-sup-label{background:#fff5f5;color:#ff4545;font-weight:700}.tax-doc .tax-buy-label{background:#f2f8ff;color:#087cf0;font-weight:700}.tax-doc .tax-value{text-align:left;background:#fff}.tax-doc .tax-items th{background:#f7f8fa;color:#687385;font-weight:500}.tax-doc .tax-items td{height:44px}.tax-doc .tax-items td:nth-child(3){text-align:left}.tax-doc .tax-total-label{background:#f7f8fa;color:#687385;font-weight:500}.tax-doc .tax-total-value{font-size:14px}.tax-doc .tax-claim{font-size:13px}.tax-doc .tax-last-row>*{border-bottom:0}
   </style></head><body>${html}</body></html>`);
   win.document.close();
   setTimeout(()=>{win.focus();win.print();},600);
@@ -2128,8 +2132,7 @@ async function boltaCheck(i){
   if(!it) return;
   try{
     const r = await boltaApi('/v1/taxInvoices/'+encodeURIComponent(it.key),'GET');
-    it.status = '발행완료';
-    it.nts = r.ntsTransactionId||'';
+    boltaApplyFetchedInvoice(it,r);
     boltaSaveLog(); renderBolta();
     alert('발행 완료!\n국세청 승인번호: '+(r.ntsTransactionId||'-'));
   }catch(e){
@@ -2140,43 +2143,79 @@ function boltaDel(i){
   if(!confirm('이 기록을 목록에서 지울까요? (발행 자체가 취소되지는 않습니다)')) return;
   boltaLog.splice(i,1); boltaSaveLog(); renderBolta();
 }
+function boltaApplyFetchedInvoice(x,r){
+  x.status='발행완료';
+  x.nts=r.ntsTransactionId||x.nts||'';
+  if(r.invoice){
+    x.invoice=r.invoice;
+    x.date=r.invoice.date||x.date;
+    x.cust=r.invoice.supplied?.organizationName||x.cust;
+    const items=r.invoice.items||[];
+    x.supply=items.reduce((a,it)=>a+Number(it.supplyCost||0),0);
+    x.tax=items.reduce((a,it)=>a+Number(it.tax||0),0);
+    x.total=x.supply+x.tax;
+  }
+}
 
 function boltaInvoiceHTML(x){
   const inv=x.invoice||{};
   const supplier=inv.supplier||{organizationName:boltaCfg.sname,representativeName:boltaCfg.sceo,identificationNumber:boltaCfg.sbizno,address:boltaCfg.saddr,businessType:boltaCfg.sbizcat,businessItem:boltaCfg.sbizitem};
   const supplied=inv.supplied||{organizationName:x.cust};
   const items=(inv.items&&inv.items.length)?inv.items:[{date:x.date,name:'발행 품목',quantity:'',unitPrice:'',supplyCost:x.supply,tax:x.tax}];
-  const rows=items.map(it=>`<tr><td>${it.name||''}</td><td>${it.quantity??''}</td><td>${it.unitPrice?Number(it.unitPrice).toLocaleString():''}</td><td>${Number(it.supplyCost||0).toLocaleString()}</td><td>${Number(it.tax||0).toLocaleString()}</td></tr>`).join('');
-  const party=(title,p)=>`<div class="td-party"><div class="td-party-title">${title}</div>
-    <div class="td-row"><span>등록번호</span>${p.identificationNumber||'-'}</div>
-    <div class="td-row"><span>상호</span><strong>${p.organizationName||'-'}</strong></div>
-    <div class="td-row"><span>대표자</span>${p.representativeName||'-'}</div>
-    <div class="td-row"><span>주소</span>${p.address||'-'}</div>
-    <div class="td-row"><span>업태/종목</span>${p.businessType||'-'} / ${p.businessItem||'-'}</div></div>`;
-  return `<div class="td">
-    <div class="td-title">세 금 계 산 서 <span class="td-stamp">${x.status||'발행'}</span></div>
-    <div class="td-num">작성일자 ${x.date||'-'} · 승인번호 ${x.nts||x.key||'-'}</div>
-    <div class="td-parties">${party('공급자',supplier)}${party('공급받는자',supplied)}</div>
-    <table class="tdt"><thead><tr><th>품명</th><th>수량</th><th>단가</th><th>공급가액</th><th>세액</th></tr></thead><tbody>${rows}</tbody></table>
-    <div class="td-total"><span>공급가액 <strong>${Number(x.supply||0).toLocaleString()}원</strong></span><span>세액 <strong>${Number(x.tax||0).toLocaleString()}원</strong></span><span>합계 <strong>${Number(x.total||0).toLocaleString()}원</strong></span></div>
-    <div class="td-bank">${inv.purpose==='RECEIPT'?'영수':'청구'} · ${inv.description||''}</div>
-  </div>`;
+  const dp=(x.date||'').split('-');
+  const supEmail=supplier.manager?.email||boltaCfg.semail||'';
+  const buyEmail=supplied.managers?.[0]?.email||'';
+  const rows=items.map(it=>`<tr><td>${dp[1]||''}</td><td>${dp[2]||''}</td><td>${it.name||''}</td><td></td><td>${it.quantity??''}</td><td>${it.unitPrice?Number(it.unitPrice).toLocaleString():''}</td><td>${Number(it.supplyCost||0).toLocaleString()}</td><td>${Number(it.tax||0).toLocaleString()}</td><td></td></tr>`).join('');
+  const value=v=>v||'';
+  return `<div class="tax-doc"><table>
+    <colgroup><col style="width:10.5%"><col style="width:14%"><col style="width:10.5%"><col style="width:15%"><col style="width:10.5%"><col style="width:14%"><col style="width:10.5%"><col style="width:15%"></colgroup>
+    <tr><th colspan="4" class="tax-title">전자세금계산서</th><th class="tax-label">승인번호</th><td colspan="3">${x.nts||x.key||'-'}</td></tr>
+    <tr><th colspan="4" class="tax-sup-head">공급자</th><th colspan="4" class="tax-buy-head">공급받는자</th></tr>
+    <tr><th class="tax-sup-label">등록번호</th><td>${value(supplier.identificationNumber)}</td><th class="tax-sup-label">종사업장 번호</th><td></td><th class="tax-buy-label">등록번호</th><td>${value(supplied.identificationNumber)}</td><th class="tax-buy-label">종사업장 번호</th><td></td></tr>
+    <tr><th class="tax-sup-label">상호</th><td>${value(supplier.organizationName)}</td><th class="tax-sup-label">성명</th><td>${value(supplier.representativeName)}</td><th class="tax-buy-label">상호</th><td>${value(supplied.organizationName)}</td><th class="tax-buy-label">성명</th><td>${value(supplied.representativeName)}</td></tr>
+    <tr><th class="tax-sup-label">사업장 주소</th><td colspan="3" class="tax-value">${value(supplier.address)}</td><th class="tax-buy-label">사업장 주소</th><td colspan="3" class="tax-value">${value(supplied.address)}</td></tr>
+    <tr><th class="tax-sup-label">업태</th><td>${value(supplier.businessType)}</td><th class="tax-sup-label">종목</th><td>${value(supplier.businessItem)}</td><th class="tax-buy-label">업태</th><td>${value(supplied.businessType)}</td><th class="tax-buy-label">종목</th><td>${value(supplied.businessItem)}</td></tr>
+    <tr><th class="tax-sup-label">이메일</th><td colspan="3" class="tax-value">${supEmail}</td><th class="tax-buy-label">이메일</th><td colspan="3" class="tax-value">${buyEmail}</td></tr>
+  </table><table>
+    <tr><th class="tax-label">작성일자</th><th class="tax-label">공급가액</th><th class="tax-label">세액</th><th class="tax-label">수정사유</th><th class="tax-label">비고</th></tr>
+    <tr><td>${x.date||''}</td><td>${Number(x.supply||0).toLocaleString()}</td><td>${Number(x.tax||0).toLocaleString()}</td><td></td><td>${inv.description||''}</td></tr>
+  </table><table class="tax-items">
+    <colgroup><col style="width:5%"><col style="width:5%"><col style="width:32%"><col style="width:7%"><col style="width:7%"><col style="width:11%"><col style="width:13%"><col style="width:11%"><col style="width:9%"></colgroup>
+    <thead><tr><th>월</th><th>일</th><th>품목</th><th>규격</th><th>수량</th><th>단가</th><th>공급가액</th><th>세액</th><th>비고</th></tr></thead><tbody>${rows}</tbody>
+  </table><table>
+    <tr><th class="tax-total-label">합계금액</th><th class="tax-total-label">현금</th><th class="tax-total-label">수표</th><th class="tax-total-label">어음</th><th class="tax-total-label">외상미수금</th><td rowspan="2" colspan="3" class="tax-claim">이 금액을 (${inv.purpose==='RECEIPT'?'영수':'청구'}) 함</td></tr>
+    <tr class="tax-last-row"><td class="tax-total-value">${Number(x.total||0).toLocaleString()}</td><td></td><td></td><td></td><td></td></tr>
+  </table></div>`;
 }
-function boltaView(i){
+async function boltaView(i){
   const x=boltaLog[i]; if(!x) return;
+  document.getElementById('bolta-view-content').innerHTML='<div style="padding:40px;text-align:center;color:#777">볼타에서 발행 원본을 불러오는 중...</div>';
   document.getElementById('bolta-view-content').innerHTML=boltaInvoiceHTML(x);
   om('m-bolta-view');
+  if(x.key&&boltaCfg.apiKey){
+    try{
+      const r=await boltaApi('/v1/taxInvoices/'+encodeURIComponent(x.key),'GET');
+      boltaApplyFetchedInvoice(x,r); boltaSaveLog(); renderBolta();
+      document.getElementById('bolta-view-content').innerHTML=boltaInvoiceHTML(x);
+    }catch(e){
+      // 아직 발행 완료 전이거나 조회 실패 시 저장된 발행 정보로 미리보기 유지
+    }
+  }
 }
-async function saveBoltaImage(){
+async function copyBoltaImage(){
+  const btn=event.target.closest('button'); const orig=btn.innerHTML;
+  btn.innerHTML='⏳ 복사 중...'; btn.disabled=true;
   try{ await ensureHtml2Canvas(); }
-  catch(e){ return alert('이미지 저장 기능을 사용하려면 인터넷 연결이 필요해요.'); }
-  const el=document.querySelector('#bolta-view-content .td');
-  if(!el) return;
+  catch(e){ btn.innerHTML=orig; btn.disabled=false; return alert('이미지 복사 기능을 사용하려면 인터넷 연결이 필요해요.'); }
+  const el=document.querySelector('#bolta-view-content .tax-doc');
+  if(!el){ btn.innerHTML=orig; btn.disabled=false; return; }
   try{
     const canvas=await html2canvas(el,{scale:3,useCORS:true,backgroundColor:'#ffffff',logging:false});
-    const a=document.createElement('a'); a.href=canvas.toDataURL('image/jpeg',0.95);
-    a.download='매일건재사_세금계산서_'+new Date().toISOString().slice(0,10).replace(/-/g,'')+'.jpg'; a.click();
-  }catch(e){ alert('이미지 저장 중 오류가 발생했습니다.\n'+e.message); }
+    const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/png'));
+    await navigator.clipboard.write([new ClipboardItem({'image/png':blob})]);
+    alert('✅ 세금계산서 이미지가 복사됐어요!\n\n카카오톡이나 문자 입력창에서 Ctrl+V로 붙여넣으세요.');
+  }catch(e){ alert('이미지 복사 실패: '+e.message+'\n\nHTTPS 환경에서 브라우저의 클립보드 권한을 허용해주세요.'); }
+  finally{ btn.innerHTML=orig; btn.disabled=false; }
 }
 
 function renderBolta(){
