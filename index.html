@@ -1393,15 +1393,16 @@ function issueViaISero(){ launchEtaxFill(); }
 
 function doPrint(contentId,title){
   const html=document.getElementById(contentId).innerHTML;
-  const win=window.open('','_blank','width=820,height=900');
+  const taxPrint=contentId==='bolta-view-content';
+  const win=window.open('','_blank',taxPrint?'width=1100,height=820':'width=820,height=900');
   win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${title}</title>
   <link href="https://fonts.googleapis.com/css2?family=Nanum+Square:wght@400;700;800&display=swap" rel="stylesheet">
   <style>
-  @page { size:A4; margin:0; }
+  @page { size:${taxPrint?'A4 landscape':'A4'}; margin:0; }
   * { box-sizing:border-box; margin:0; padding:0; -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; }
   html,body { background:#fff; font-family:'Nanum Square','Malgun Gothic',Arial,sans-serif; }
   body { display:flex; justify-content:center; padding:20px 0; }
-  @media print { body { padding:0; } }
+  @media print { body { padding:${taxPrint?'8mm':'0'}; } ${taxPrint?'.tax-doc{zoom:.88;}':''} }
   * { box-sizing:border-box; margin:0; padding:0; }
   .est-page { background:#fff; width:740px; box-shadow:0 4px 24px rgba(0,0,0,.18); }
 
@@ -2176,7 +2177,7 @@ function boltaInvoiceHTML(x){
     <colgroup><col style="width:10.5%"><col style="width:14%"><col style="width:10.5%"><col style="width:15%"><col style="width:10.5%"><col style="width:14%"><col style="width:10.5%"><col style="width:15%"></colgroup>
     <tr><th colspan="4" class="tax-title">전자세금계산서</th><th class="tax-label">승인번호</th><td colspan="3">${x.nts||x.key||'-'}</td></tr>
     <tr><th colspan="4" class="tax-sup-head">공급자</th><th colspan="4" class="tax-buy-head">공급받는자</th></tr>
-    <tr><th class="tax-sup-label">등록번호</th><td>${bizNo(supplier.identificationNumber)}</td><th class="tax-sup-label">종사업장 번호</th><td>${value(supplier.taxRegistrationId)}</td><th class="tax-buy-label">등록번호</th><td>${bizNo(supplied.identificationNumber)}</td><th class="tax-buy-label">종사업장 번호</th><td>${value(supplied.taxRegistrationId)}</td></tr>
+    <tr><th class="tax-sup-label">등록번호</th><td>${bizNo(supplier.identificationNumber)}</td><th class="tax-sup-label">종사업장<br>번호</th><td>${value(supplier.taxRegistrationId)}</td><th class="tax-buy-label">등록번호</th><td>${bizNo(supplied.identificationNumber)}</td><th class="tax-buy-label">종사업장<br>번호</th><td>${value(supplied.taxRegistrationId)}</td></tr>
     <tr><th class="tax-sup-label">상호</th><td>${value(supplier.organizationName)}</td><th class="tax-sup-label">성명</th><td>${value(supplier.representativeName)}</td><th class="tax-buy-label">상호</th><td>${value(supplied.organizationName)}</td><th class="tax-buy-label">성명</th><td>${value(supplied.representativeName)}</td></tr>
     <tr><th class="tax-sup-label">사업장 주소</th><td colspan="3" class="tax-value">${value(supplier.address)}</td><th class="tax-buy-label">사업장 주소</th><td colspan="3" class="tax-value">${value(supplied.address)}</td></tr>
     <tr><th class="tax-sup-label">업태</th><td>${value(supplier.businessType)}</td><th class="tax-sup-label">종목</th><td>${value(supplier.businessItem)}</td><th class="tax-buy-label">업태</th><td>${value(supplied.businessType)}</td><th class="tax-buy-label">종목</th><td>${value(supplied.businessItem)}</td></tr>
