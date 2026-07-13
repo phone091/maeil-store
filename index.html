@@ -385,6 +385,18 @@ textarea{resize:vertical;min-height:55px}
   </div>
 </div>
 
+<!-- 발행 세금계산서 미리보기 -->
+<div id="m-bolta-view" class="mbg" onclick="bcl(event,'m-bolta-view')">
+  <div class="modal modal-est"><div class="mt">세금계산서 미리보기 <button class="btn btn-sm" onclick="cm('m-bolta-view')"><i class="ti ti-x"></i></button></div>
+    <div id="bolta-view-content"></div>
+    <div class="abar">
+      <button class="btn btn-p" onclick="doPrint('bolta-view-content','세금계산서')"><i class="ti ti-printer"></i> 인쇄</button>
+      <button class="btn" onclick="saveBoltaImage()" style="background:#6c3483;border-color:#6c3483;color:#fff;"><i class="ti ti-photo-down"></i> 이미지 저장</button>
+      <button class="btn" onclick="cm('m-bolta-view')">닫기</button>
+    </div>
+  </div>
+</div>
+
 <!-- 거래 추가 -->
 <div id="m-tx" class="mbg" onclick="bcl(event,'m-tx')">
   <div class="modal"><div class="mt">거래 내역 추가 <button class="btn btn-sm" onclick="cm('m-tx')"><i class="ti ti-x" aria-hidden="true"></i></button></div>
@@ -2096,7 +2108,7 @@ async function boltaIssue(){
     });
     const sSum = items.reduce((a,i)=>a+i.supplyCost,0);
     const tSum = items.reduce((a,i)=>a+(i.tax||0),0);
-    boltaLog.unshift({key:r.issuanceKey, ref:ref, date:date, cust:name, supply:sSum, tax:tSum, total:sSum+tSum, live:live, status:'발행요청', nts:''});
+    boltaLog.unshift({key:r.issuanceKey, ref:ref, date:date, cust:name, supply:sSum, tax:tSum, total:sSum+tSum, live:live, status:'발행요청', nts:'', invoice:payload});
     boltaSaveLog();
     // 기존 세금계산서 내역(taxList)에도 기록
     taxSeq++;
@@ -2129,6 +2141,44 @@ function boltaDel(i){
   boltaLog.splice(i,1); boltaSaveLog(); renderBolta();
 }
 
+function boltaInvoiceHTML(x){
+  const inv=x.invoice||{};
+  const supplier=inv.supplier||{organizationName:boltaCfg.sname,representativeName:boltaCfg.sceo,identificationNumber:boltaCfg.sbizno,address:boltaCfg.saddr,businessType:boltaCfg.sbizcat,businessItem:boltaCfg.sbizitem};
+  const supplied=inv.supplied||{organizationName:x.cust};
+  const items=(inv.items&&inv.items.length)?inv.items:[{date:x.date,name:'발행 품목',quantity:'',unitPrice:'',supplyCost:x.supply,tax:x.tax}];
+  const rows=items.map(it=>`<tr><td>${it.name||''}</td><td>${it.quantity??''}</td><td>${it.unitPrice?Number(it.unitPrice).toLocaleString():''}</td><td>${Number(it.supplyCost||0).toLocaleString()}</td><td>${Number(it.tax||0).toLocaleString()}</td></tr>`).join('');
+  const party=(title,p)=>`<div class="td-party"><div class="td-party-title">${title}</div>
+    <div class="td-row"><span>등록번호</span>${p.identificationNumber||'-'}</div>
+    <div class="td-row"><span>상호</span><strong>${p.organizationName||'-'}</strong></div>
+    <div class="td-row"><span>대표자</span>${p.representativeName||'-'}</div>
+    <div class="td-row"><span>주소</span>${p.address||'-'}</div>
+    <div class="td-row"><span>업태/종목</span>${p.businessType||'-'} / ${p.businessItem||'-'}</div></div>`;
+  return `<div class="td">
+    <div class="td-title">세 금 계 산 서 <span class="td-stamp">${x.status||'발행'}</span></div>
+    <div class="td-num">작성일자 ${x.date||'-'} · 승인번호 ${x.nts||x.key||'-'}</div>
+    <div class="td-parties">${party('공급자',supplier)}${party('공급받는자',supplied)}</div>
+    <table class="tdt"><thead><tr><th>품명</th><th>수량</th><th>단가</th><th>공급가액</th><th>세액</th></tr></thead><tbody>${rows}</tbody></table>
+    <div class="td-total"><span>공급가액 <strong>${Number(x.supply||0).toLocaleString()}원</strong></span><span>세액 <strong>${Number(x.tax||0).toLocaleString()}원</strong></span><span>합계 <strong>${Number(x.total||0).toLocaleString()}원</strong></span></div>
+    <div class="td-bank">${inv.purpose==='RECEIPT'?'영수':'청구'} · ${inv.description||''}</div>
+  </div>`;
+}
+function boltaView(i){
+  const x=boltaLog[i]; if(!x) return;
+  document.getElementById('bolta-view-content').innerHTML=boltaInvoiceHTML(x);
+  om('m-bolta-view');
+}
+async function saveBoltaImage(){
+  try{ await ensureHtml2Canvas(); }
+  catch(e){ return alert('이미지 저장 기능을 사용하려면 인터넷 연결이 필요해요.'); }
+  const el=document.querySelector('#bolta-view-content .td');
+  if(!el) return;
+  try{
+    const canvas=await html2canvas(el,{scale:3,useCORS:true,backgroundColor:'#ffffff',logging:false});
+    const a=document.createElement('a'); a.href=canvas.toDataURL('image/jpeg',0.95);
+    a.download='매일건재사_세금계산서_'+new Date().toISOString().slice(0,10).replace(/-/g,'')+'.jpg'; a.click();
+  }catch(e){ alert('이미지 저장 중 오류가 발생했습니다.\n'+e.message); }
+}
+
 function renderBolta(){
   const guide = document.getElementById('bolta-guide');
   if(guide) guide.style.display = boltaCfg.apiKey ? 'none' : 'block';
@@ -2149,6 +2199,7 @@ function renderBolta(){
       <td style="font-weight:500">${x.total.toLocaleString()}원</td>
       <td style="padding-left:20px">${x.live?'':'<span class="badge bi">테스트</span> '}${x.status==='발행완료'?'<span class="badge bs">발행완료</span>':'<span class="badge bw">'+x.status+'</span>'}${x.nts?'<div style="font-size:10px;color:#999">'+x.nts+'</div>':''}</td>
       <td style="display:flex;gap:4px;">
+        <button class="btn btn-sm" onclick="boltaView(${i})" style="background:#185FA5;border-color:#185FA5;color:#fff;"><i class="ti ti-eye"></i> 보기</button>
         <button class="btn btn-sm" onclick="boltaCheck(${i})"><i class="ti ti-refresh"></i> 상태확인</button>
         <button class="btn btn-sm" onclick="boltaDel(${i})" style="color:#A32D2D"><i class="ti ti-trash"></i></button>
       </td>
