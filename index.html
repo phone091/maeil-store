@@ -1394,15 +1394,15 @@ function issueViaISero(){ launchEtaxFill(); }
 function doPrint(contentId,title){
   const html=document.getElementById(contentId).innerHTML;
   const taxPrint=contentId==='bolta-view-content';
-  const win=window.open('','_blank',taxPrint?'width=1100,height=820':'width=820,height=900');
+  const win=window.open('','_blank','width=820,height=900');
   win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${title}</title>
   <link href="https://fonts.googleapis.com/css2?family=Nanum+Square:wght@400;700;800&display=swap" rel="stylesheet">
   <style>
-  @page { size:${taxPrint?'A4 landscape':'A4'}; margin:0; }
+  @page { size:A4 portrait; margin:0; }
   * { box-sizing:border-box; margin:0; padding:0; -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; }
   html,body { background:#fff; font-family:'Nanum Square','Malgun Gothic',Arial,sans-serif; }
   body { display:flex; justify-content:center; padding:20px 0; }
-  @media print { body { padding:${taxPrint?'8mm':'0'}; } ${taxPrint?'.tax-doc{zoom:.88;}':''} }
+  @media print { body { padding:${taxPrint?'8mm':'0'}; } ${taxPrint?'.tax-doc{zoom:.72;}':''} }
   * { box-sizing:border-box; margin:0; padding:0; }
   .est-page { background:#fff; width:740px; box-shadow:0 4px 24px rgba(0,0,0,.18); }
 
