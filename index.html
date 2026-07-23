@@ -2049,7 +2049,7 @@ function boltaOpenIssue(pref){
   } else {
     boltaAddRow();
   }
-  document.getElementById('bi-mode').textContent = !boltaCfg.apiKey ? '⚠️ API 키 미설정' : (boltaLive()?'🔴 라이브 모드 — 실제 국세청 전송':'🟢 테스트 모드 — 가상 발행');
+  document.getElementById('bi-mode').textContent = !boltaCfg.apiKey ? '⚠️ API 키 미설정' : (boltaLive()?'🟢 라이브 모드 — 실제 국세청 전송':'🟢 테스트 모드 — 가상 발행');
   boltaCalc();
   om('m-bolta-issue');
 }
@@ -2383,7 +2383,7 @@ function renderBolta(){
   const st = document.getElementById('bolta-status');
   if(st){
     st.innerHTML = boltaCfg.apiKey
-      ? `${boltaLive()?'🔴 라이브 모드':'🟢 테스트 모드'} · 공급자: ${boltaCfg.sname} (${boltaCfg.sbizno}) · ${boltaCfg.supplierKey?'공급자 등록됨':'⚠️ 공급자 미등록'}`
+      ? `${boltaLive()?'🟢 라이브 모드':'🟢 테스트 모드'} · 공급자: ${boltaCfg.sname} (${boltaCfg.sbizno}) · ${boltaCfg.supplierKey?'공급자 등록됨':'⚠️ 공급자 미등록'}`
       : '';
   }
   const tb = document.getElementById('bolta-tbody');
