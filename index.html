@@ -164,7 +164,7 @@ textarea{resize:vertical;min-height:55px}
 .td-total{display:flex;justify-content:flex-end;gap:16px;font-size:11px;padding:7px 0;border-top:1px solid #ccc}
 .td-bank{font-size:10px;color:#888 !important;margin-top:7px;border-top:0.5px solid #eee;padding-top:6px}
 .tax-doc{width:100%;background:#fff;color:#111;font-family:'Malgun Gothic','맑은 고딕',Arial,sans-serif;border:1px solid #cfd5dd;border-radius:8px;overflow:hidden}
-.tax-doc *{box-sizing:border-box}.tax-doc table{width:100%;border-collapse:collapse;table-layout:fixed}.tax-doc th,.tax-doc td{border-right:1px solid #dfe3e8;border-bottom:1px solid #dfe3e8;padding:12px 11px;height:48px;font-size:13px;font-weight:400;text-align:center;vertical-align:middle;line-height:1.35}.tax-doc tr>*:last-child{border-right:0}.tax-doc .tax-title{font-size:18px;font-weight:800;height:52px}.tax-doc .tax-label{background:#f7f8fa;color:#687385;font-weight:500}.tax-doc .tax-sup-head{background:#ffd6d6;color:#ff4545;font-weight:800;height:50px}.tax-doc .tax-buy-head{background:#c9e5ff;color:#087cf0;font-weight:800;height:50px}.tax-doc .tax-sup-label{background:#fff3f3;color:#ff4545;font-weight:700}.tax-doc .tax-buy-label{background:#eef7ff;color:#087cf0;font-weight:700}.tax-doc .tax-value{text-align:left;background:#fff;padding-left:13px}.tax-doc .tax-items th{background:#f7f8fa;color:#687385;font-weight:500;height:40px;padding:8px 6px}.tax-doc .tax-items td{height:47px;padding:9px 6px}.tax-doc .tax-items td:nth-child(3){text-align:center}.tax-doc .tax-settlement{border-top:1px solid #cfd5dd}.tax-doc .tax-total-label{background:#f7f8fa;color:#687385;font-weight:500;height:42px;border-top:1px solid #cfd5dd}.tax-doc .tax-total-value{font-size:14px}.tax-doc .tax-claim{font-size:13px;border-top:1px solid #cfd5dd!important;border-left:1px solid #cfd5dd!important}.tax-doc .tax-last-row>*{border-bottom:0}
+.tax-doc *{box-sizing:border-box}.tax-doc table{width:100%;border-collapse:collapse;table-layout:fixed}.tax-doc th,.tax-doc td{border-right:1px solid #dfe3e8;border-bottom:1px solid #dfe3e8;padding:12px 11px;height:48px;font-size:13px;font-weight:400;text-align:center;vertical-align:middle;line-height:1.35}.tax-doc tr>*:last-child{border-right:0}.tax-doc .tax-title{font-size:18px;font-weight:800;height:52px;color:#111}.tax-doc .tax-label{background:#f7f8fa;color:#687385;font-weight:500}.tax-doc .tax-sup-head{background:#ffd6d6;color:#ff4545;font-weight:800;height:50px}.tax-doc .tax-buy-head{background:#c9e5ff;color:#087cf0;font-weight:800;height:50px}.tax-doc .tax-sup-label{background:#fff3f3;color:#ff4545;font-weight:700}.tax-doc .tax-buy-label{background:#eef7ff;color:#087cf0;font-weight:700}.tax-doc .tax-value{text-align:left;background:#fff;padding-left:13px}.tax-doc .tax-items th{background:#f7f8fa;color:#687385;font-weight:500;height:40px;padding:8px 6px}.tax-doc .tax-items td{height:47px;padding:9px 6px}.tax-doc .tax-items td:nth-child(3){text-align:center}.tax-doc .tax-settlement{border-top:1px solid #cfd5dd}.tax-doc .tax-total-label{background:#f7f8fa;color:#687385;font-weight:500;height:42px;border-top:1px solid #cfd5dd}.tax-doc .tax-total-value{font-size:14px}.tax-doc .tax-claim{font-size:13px;border-top:1px solid #cfd5dd!important;border-left:1px solid #cfd5dd!important}.tax-doc .tax-last-row>*{border-bottom:0}
 .tax-doc .tax-summary,.tax-doc .tax-settlement{border-top:1px solid #bfc7d1!important}
 .tax-doc .tax-summary tr:first-child>*,.tax-doc .tax-settlement tr:first-child>*{border-top:1px solid #bfc7d1!important}
 /* sms */
@@ -180,6 +180,8 @@ textarea{resize:vertical;min-height:55px}
 .ir{display:grid;grid-template-columns:2.6fr 1.2fr 0.9fr 1.3fr auto;gap:5px;align-items:center;margin-bottom:5px}
 .ir input{font-size:12px;padding:5px 6px}
 .ir input.ir-sum{background:#f2f2f2;color:#555;font-weight:500}
+.ba-ir{display:grid;grid-template-columns:2.6fr 1.3fr 1.3fr auto;gap:5px;align-items:center;margin-bottom:5px}
+.ba-ir input{font-size:12px;padding:5px 6px}
 .idel{background:none;border:none;cursor:pointer;color:#999999;font-size:13px;padding:4px}
 .idel:hover{color:#A32D2D}
 .tot-row{display:flex;justify-content:flex-end;gap:14px;font-size:12px;padding:7px 0 0;border-top:0.5px solid #e5e5e5;margin-top:3px}
@@ -399,6 +401,33 @@ textarea{resize:vertical;min-height:55px}
       <button class="btn btn-p" onclick="doPrint('bolta-view-content','세금계산서')"><i class="ti ti-printer"></i> 인쇄</button>
       <button class="btn" onclick="copyBoltaImage()" style="background:#6c3483;border-color:#6c3483;color:#fff;"><i class="ti ti-photo"></i> 이미지 복사</button>
       <button class="btn" onclick="cm('m-bolta-view')">닫기</button>
+    </div>
+  </div>
+</div>
+
+<!-- 세금계산서 수정발행/취소 -->
+<div id="m-bolta-amend" class="mbg" onclick="bcl(event,'m-bolta-amend')">
+  <div class="modal"><div class="mt">수정발행 / 취소 <button class="btn btn-sm" onclick="cm('m-bolta-amend')"><i class="ti ti-x" aria-hidden="true"></i></button></div>
+    <div style="background:#f5f5f5;border-radius:8px;padding:11px 13px;margin-bottom:13px;font-size:12.5px;color:#555" id="ba-summary"></div>
+    <div class="fr full"><div><label>사유</label>
+      <select id="ba-reason" onchange="boltaAmendReasonChange()">
+        <option value="changeSupplyCost">금액 수정 (공급가액 변동)</option>
+        <option value="termination">발행 취소 (계약의 해제)</option>
+      </select>
+    </div></div>
+    <div class="fr full"><div><label>수정 작성일자</label><input type="date" id="ba-date"></div></div>
+    <div id="ba-items-wrap">
+      <label style="margin-bottom:5px;display:block;">수정 품목 (기존 금액과의 차액을 입력하세요. 줄이려면 음수)</label>
+      <div style="display:grid;grid-template-columns:2.6fr 1.3fr 1.3fr auto;gap:5px;margin-bottom:3px">
+        <span style="font-size:10px;color:#999999">품명</span><span style="font-size:10px;color:#999999">공급가액 차액</span><span style="font-size:10px;color:#999999">세액 차액</span><span></span>
+      </div>
+      <div id="ba-irows"></div>
+      <button class="btn" style="margin-top:5px;font-size:11px" onclick="boltaAmendAddRow()"><i class="ti ti-plus" aria-hidden="true"></i> 품목 추가</button>
+    </div>
+    <div id="ba-term-note" style="display:none;font-size:12.5px;color:#777;margin-bottom:9px;">전체 금액이 상계 처리되어 발행이 취소됩니다. (원래 발행일 기준)</div>
+    <div style="display:flex;justify-content:flex-end;gap:7px;margin-top:13px">
+      <button class="btn" onclick="cm('m-bolta-amend')">취소</button>
+      <button class="btn btn-p" id="ba-submit" onclick="boltaAmendSubmit()"><i class="ti ti-send" aria-hidden="true"></i> 수정발행</button>
     </div>
   </div>
 </div>
@@ -1491,7 +1520,7 @@ function doPrint(contentId,title){
   .td-total{display:flex;justify-content:flex-end;gap:16px;font-size:11px;padding:7px 0;border-top:1px solid #ccc}
   .td-bank{font-size:10px;color:#888;margin-top:7px;border-top:0.5px solid #eee;padding-top:6px}
   .tax-doc{width:980px;max-width:100%;background:#fff;color:#111;font-family:'Malgun Gothic','맑은 고딕',Arial,sans-serif;border:1px solid #cfd5dd;border-radius:8px;overflow:hidden}
-  .tax-doc *{box-sizing:border-box}.tax-doc table{width:100%;border-collapse:collapse;table-layout:fixed}.tax-doc th,.tax-doc td{border-right:1px solid #dfe3e8;border-bottom:1px solid #dfe3e8;padding:12px 11px;height:48px;font-size:13px;font-weight:400;text-align:center;vertical-align:middle;line-height:1.35}.tax-doc tr>*:last-child{border-right:0}.tax-doc .tax-title{font-size:18px;font-weight:800;height:52px}.tax-doc .tax-label{background:#f7f8fa;color:#687385;font-weight:500}.tax-doc .tax-sup-head{background:#ffd6d6;color:#ff4545;font-weight:800;height:50px}.tax-doc .tax-buy-head{background:#c9e5ff;color:#087cf0;font-weight:800;height:50px}.tax-doc .tax-sup-label{background:#fff3f3;color:#ff4545;font-weight:700}.tax-doc .tax-buy-label{background:#eef7ff;color:#087cf0;font-weight:700}.tax-doc .tax-value{text-align:left;background:#fff;padding-left:13px}.tax-doc .tax-items th{background:#f7f8fa;color:#687385;font-weight:500;height:40px;padding:8px 6px}.tax-doc .tax-items td{height:47px;padding:9px 6px}.tax-doc .tax-items td:nth-child(3){text-align:center}.tax-doc .tax-settlement{border-top:1px solid #cfd5dd}.tax-doc .tax-total-label{background:#f7f8fa;color:#687385;font-weight:500;height:42px;border-top:1px solid #cfd5dd}.tax-doc .tax-total-value{font-size:14px}.tax-doc .tax-claim{font-size:13px;border-top:1px solid #cfd5dd!important;border-left:1px solid #cfd5dd!important}.tax-doc .tax-last-row>*{border-bottom:0}
+  .tax-doc *{box-sizing:border-box}.tax-doc table{width:100%;border-collapse:collapse;table-layout:fixed}.tax-doc th,.tax-doc td{border-right:1px solid #dfe3e8;border-bottom:1px solid #dfe3e8;padding:12px 11px;height:48px;font-size:13px;font-weight:400;text-align:center;vertical-align:middle;line-height:1.35}.tax-doc tr>*:last-child{border-right:0}.tax-doc .tax-title{font-size:18px;font-weight:800;height:52px;color:#111}.tax-doc .tax-label{background:#f7f8fa;color:#687385;font-weight:500}.tax-doc .tax-sup-head{background:#ffd6d6;color:#ff4545;font-weight:800;height:50px}.tax-doc .tax-buy-head{background:#c9e5ff;color:#087cf0;font-weight:800;height:50px}.tax-doc .tax-sup-label{background:#fff3f3;color:#ff4545;font-weight:700}.tax-doc .tax-buy-label{background:#eef7ff;color:#087cf0;font-weight:700}.tax-doc .tax-value{text-align:left;background:#fff;padding-left:13px}.tax-doc .tax-items th{background:#f7f8fa;color:#687385;font-weight:500;height:40px;padding:8px 6px}.tax-doc .tax-items td{height:47px;padding:9px 6px}.tax-doc .tax-items td:nth-child(3){text-align:center}.tax-doc .tax-settlement{border-top:1px solid #cfd5dd}.tax-doc .tax-total-label{background:#f7f8fa;color:#687385;font-weight:500;height:42px;border-top:1px solid #cfd5dd}.tax-doc .tax-total-value{font-size:14px}.tax-doc .tax-claim{font-size:13px;border-top:1px solid #cfd5dd!important;border-left:1px solid #cfd5dd!important}.tax-doc .tax-last-row>*{border-bottom:0}
   .tax-doc .tax-summary,.tax-doc .tax-settlement{border-top:1px solid #bfc7d1!important}
   .tax-doc .tax-summary tr:first-child>*,.tax-doc .tax-settlement tr:first-child>*{border-top:1px solid #bfc7d1!important}
   </style></head><body>${html}</body></html>`);
@@ -2174,6 +2203,105 @@ function boltaDel(i){
   if(!confirm('이 기록을 목록에서 지울까요? (발행 자체가 취소되지는 않습니다)')) return;
   boltaLog.splice(i,1); boltaSaveLog(); renderBolta();
 }
+
+// ── 수정발행 / 취소 (볼타 전자세금계산서 수정발행 API)
+let _baOrigIdx = -1;
+function boltaOpenAmend(i){
+  const x = boltaLog[i];
+  if(!x) return;
+  if(!x.key){ alert('아직 발행 요청이 완료되지 않은 건이에요. 잠시 후 다시 시도해주세요.'); return; }
+  if(!x.nts){ alert('국세청 승인이 완료된(발행완료) 세금계산서만 수정발행할 수 있어요.\n먼저 [상태확인]을 눌러 승인 여부를 확인해주세요.'); return; }
+  _baOrigIdx = i;
+  document.getElementById('ba-summary').innerHTML =
+    `<strong>${x.cust}</strong> · ${x.date} · 공급가액 ${x.supply.toLocaleString()}원 · 세액 ${x.tax.toLocaleString()}원 · 합계 ${x.total.toLocaleString()}원<br>승인번호: ${x.nts}`;
+  document.getElementById('ba-reason').value = 'changeSupplyCost';
+  document.getElementById('ba-date').value = new Date().toISOString().slice(0,10);
+  document.getElementById('ba-irows').innerHTML = '';
+  boltaAmendAddRow();
+  boltaAmendReasonChange();
+  om('m-bolta-amend');
+}
+function boltaAmendReasonChange(){
+  const term = document.getElementById('ba-reason').value === 'termination';
+  document.getElementById('ba-items-wrap').style.display = term ? 'none' : 'block';
+  document.getElementById('ba-term-note').style.display = term ? 'block' : 'none';
+  document.getElementById('ba-submit').innerHTML = '<i class="ti ti-send" aria-hidden="true"></i> ' + (term ? '발행 취소' : '수정발행');
+}
+function boltaAmendAddRow(name, supply, tax){
+  const wrap = document.getElementById('ba-irows');
+  const div = document.createElement('div');
+  div.className = 'ba-ir';
+  div.innerHTML = `<input type="text" placeholder="품명" value="${name||''}">
+    <input type="number" placeholder="예: -10000" value="${supply??''}" oninput="boltaAmendRowCalc(this)">
+    <input type="number" placeholder="예: -1000" value="${tax??''}">
+    <button class="idel" onclick="this.parentElement.remove()"><i class="ti ti-x" aria-hidden="true"></i></button>`;
+  wrap.appendChild(div);
+}
+function boltaAmendRowCalc(inp){
+  const row = inp.parentElement;
+  const taxInput = row.querySelectorAll('input')[2];
+  if(taxInput.value===''){
+    const s = parseInt(inp.value)||0;
+    taxInput.value = s ? Math.round(s*0.1) : '';
+  }
+}
+async function boltaAmendSubmit(){
+  const x = boltaLog[_baOrigIdx];
+  if(!x) return;
+  const reason = document.getElementById('ba-reason').value;
+  const date = document.getElementById('ba-date').value;
+  if(!date) return alert('작성일자를 입력해주세요.');
+  const live = boltaLive();
+  const btn = document.getElementById('ba-submit');
+  let path, payload, label;
+  if(reason==='termination'){
+    label = '발행 취소';
+    path = '/v1/taxInvoices/'+encodeURIComponent(x.key)+'/amend/termination';
+    payload = { date };
+    if(!confirm('['+x.cust+'] '+x.date+' 발행건을 취소(계약의 해제)할까요?\n전체 금액이 상계 처리됩니다.'+(live?'\n\n⚠️ 라이브 모드입니다. 실제로 국세청에 전송됩니다.':''))) return;
+  } else {
+    label = '수정발행';
+    const origItems = x.invoice?.items||[];
+    const origTaxFree = origItems.length>0 && origItems.every(it=>it.tax===null||it.tax===undefined);
+    const items=[]; let bad=null;
+    document.querySelectorAll('#ba-irows .ba-ir').forEach(row=>{
+      const ins = row.querySelectorAll('input');
+      const n = ins[0].value.trim();
+      const s = ins[1].value===''?NaN:parseInt(ins[1].value);
+      const t = ins[2].value===''?null:parseInt(ins[2].value);
+      if(!n && isNaN(s)) return; // 빈 줄 무시
+      if(!n || isNaN(s)){ bad='품명과 공급가액 차액을 확인해주세요.'; return; }
+      items.push({date, name:n, unitPrice:null, quantity:null, supplyCost:s, tax: origTaxFree ? null : (t??0)});
+    });
+    if(bad) return alert(bad);
+    if(!items.length) return alert('수정할 품목을 1개 이상 입력해주세요.');
+    path = '/v1/taxInvoices/'+encodeURIComponent(x.key)+'/amend/changeSupplyCost';
+    payload = { date, taxType: origTaxFree?'TAX_FREE':'TAXABLE', items };
+    if(!confirm('['+x.cust+'] '+x.date+' 발행건의 금액을 수정발행할까요?'+(live?'\n\n⚠️ 라이브 모드입니다. 실제로 국세청에 전송됩니다.':''))) return;
+  }
+  btn.disabled = true; btn.textContent = label+' 처리 중...';
+  try{
+    const r = await boltaApi(path, 'POST', payload, { 'Supplier-Key': boltaCfg.supplierKey });
+    const sDiff = reason==='termination' ? -x.supply : payload.items.reduce((a,it)=>a+it.supplyCost,0);
+    const tDiff = reason==='termination' ? -x.tax : payload.items.reduce((a,it)=>a+(it.tax||0),0);
+    boltaLog.unshift({
+      key:r.issuanceKey, ref:'amend-'+Date.now(), date, cust:x.cust,
+      supply:sDiff, tax:tDiff, total:sDiff+tDiff, live, status:'발행요청', nts:'',
+      invoice: x.invoice ? Object.assign({}, x.invoice, {date}) : undefined,
+      amendOf:x.key, amendType:reason
+    });
+    boltaSaveLog();
+    taxSeq++;
+    taxList.push({num:'BOLTA-'+String(taxSeq).padStart(3,'0'), cust:x.cust, totalAmt:sDiff+tDiff, date, status:live?'볼타 '+label+' 요청':'볼타 테스트 '+label, type:'매출전자'});
+    saveData();
+    cm('m-bolta-amend'); renderBolta();
+    alert(label+' 요청 완료!\nissuanceKey: '+r.issuanceKey+'\n\n잠시 후 [상태확인]을 누르면 국세청 승인번호를 확인할 수 있습니다.'+(live?'':'\n(테스트 모드라 실제 전송은 되지 않습니다.)'));
+  }catch(e){
+    alert(label+' 실패:\n'+e.message);
+  }finally{
+    btn.disabled = false; boltaAmendReasonChange();
+  }
+}
 function boltaApplyFetchedInvoice(x,r){
   x.status='발행완료';
   x.nts=r.ntsTransactionId||x.nts||'';
@@ -2263,13 +2391,14 @@ function renderBolta(){
   tb.innerHTML = boltaLog.length ? boltaLog.map((x,i)=>`
     <tr>
       <td>${x.date}</td>
-      <td style="font-weight:500">${x.cust}</td>
+      <td style="font-weight:500">${x.cust}${x.amendOf?`<span class="badge" style="background:#f0e6f7;color:#6c3483;margin-left:5px">${x.amendType==='termination'?'취소':'수정'}</span>`:''}</td>
       <td>${x.supply.toLocaleString()}원</td>
       <td>${x.tax.toLocaleString()}원</td>
       <td style="font-weight:500">${x.total.toLocaleString()}원</td>
       <td style="padding-left:20px">${x.live?'':'<span class="badge bi">테스트</span> '}${x.status==='발행완료'?'<span class="badge bs">발행완료</span>':'<span class="badge bw">'+x.status+'</span>'}${x.nts?'<div style="font-size:10px;color:#999">'+x.nts+'</div>':''}</td>
       <td style="display:flex;gap:4px;">
         <button class="btn btn-sm" onclick="boltaView(${i})" style="background:#185FA5;border-color:#185FA5;color:#fff;"><i class="ti ti-eye"></i> 보기</button>
+        ${x.amendOf?'':`<button class="btn btn-sm" onclick="boltaOpenAmend(${i})" style="background:#6c3483;border-color:#6c3483;color:#fff;"><i class="ti ti-edit"></i> 수정발행</button>`}
         <button class="btn btn-sm" onclick="boltaCheck(${i})"><i class="ti ti-refresh"></i> 상태확인</button>
         <button class="btn btn-sm" onclick="boltaDel(${i})" style="color:#A32D2D"><i class="ti ti-trash"></i></button>
       </td>
