@@ -351,7 +351,7 @@ textarea{resize:vertical;min-height:55px}
     <div class="fr full"><div><label>프록시 URL (구글 앱스 스크립트 웹앱 주소 — CORS 우회용, 필수)</label><input type="text" id="bo-proxy" placeholder="https://script.google.com/macros/s/....../exec"></div></div>
     <div class="abar" style="margin-top:12px;padding-top:12px;">
       <button class="btn btn-p" onclick="boltaSaveSettings()"><i class="ti ti-check"></i> 저장</button>
-      <button class="btn btn-b" onclick="boltaRegisterSupplier()"><i class="ti ti-user-plus"></i> 공급자 등록 (supplierKey 발급)</button>
+      <button class="btn btn-b" onclick="boltaRegisterSupplier()"><i class="ti ti-user-plus"></i> 발급자 등록 (issuerId 발급)</button>
       <button class="btn btn-a" onclick="boltaCertUrl()"><i class="ti ti-certificate"></i> 인증서 등록 열기</button>
     </div>
     <div style="font-size:11px;color:#999;margin-top:9px;line-height:1.6;">
@@ -372,7 +372,7 @@ textarea{resize:vertical;min-height:55px}
     <div class="fr three"><div><label>업태</label><input type="text" id="bi-bizcat"></div><div><label>종목</label><input type="text" id="bi-bizitem"></div>
       <div><label>영수/청구</label><select id="bi-purpose"><option value="CLAIM">청구</option><option value="RECEIPT">영수</option></select></div></div>
     <div style="margin:9px 0 6px;">
-      <label style="margin-bottom:5px;">품목 (최대 5개)</label>
+      <label style="margin-bottom:5px;">품목 (최대 16개)</label>
       <div style="display:grid;grid-template-columns:2.4fr 0.9fr 1.3fr 1.4fr 1.2fr auto;gap:5px;margin-bottom:3px">
         <span style="font-size:10px;color:#999">품명</span><span style="font-size:10px;color:#999;text-align:right">수량</span><span style="font-size:10px;color:#999;text-align:right">단가</span><span style="font-size:10px;color:#999;text-align:right">공급가액</span><span style="font-size:10px;color:#999;text-align:right">세액</span><span></span>
       </div>
@@ -1931,10 +1931,12 @@ const BOLTA_CFG_KEY = 'bolta_cfg_v1';
 const BOLTA_LOG_KEY = 'bolta_log_v1';
 
 let boltaCfg = Object.assign({
-  apiKey:'', supplierKey:'', proxy:'',
+  apiKey:'', issuerId:'', certExp:'', proxy:'',
   sname:S.name, sceo:S.owner, sbizno:S.biz, semail:CLOUD_USER,
   saddr:S.addr, sbizcat:'', sbizitem:''
 }, JSON.parse(localStorage.getItem(BOLTA_CFG_KEY)||'{}'));
+
+delete boltaCfg.supplierKey; // 볼타 API 개편: /v1/suppliers·Supplier-Key 폐지 → /v1/issuers·issuerId
 
 let boltaLog = JSON.parse(localStorage.getItem(BOLTA_LOG_KEY)||'[]');
 
@@ -2002,9 +2004,10 @@ function boltaOpenSettings(){
 }
 function boltaSupState(){
   const el = document.getElementById('bo-supstate');
-  el.innerHTML = boltaCfg.supplierKey
-    ? '✅ 공급자 등록 완료 (supplierKey: <code>'+boltaCfg.supplierKey+'</code>)'
-    : '⚠️ 아직 공급자 등록 전입니다. 정보 저장 후 [공급자 등록]을 눌러주세요.';
+  el.innerHTML = boltaCfg.issuerId
+    ? '✅ 발급자 등록 완료 (issuerId: <code>'+boltaCfg.issuerId+'</code>)'
+      + (boltaCfg.certExp ? '<br>✅ 공동인증서 등록됨 (만료 '+boltaCfg.certExp.slice(0,10)+')' : '<br>⚠️ 공동인증서 미등록 — [인증서 등록 열기]로 등록해주세요.')
+    : '⚠️ 아직 발급자 등록 전입니다. 정보 저장 후 [발급자 등록]을 눌러주세요.';
 }
 function boltaReadSettings(){
   boltaCfg.apiKey = document.getElementById('bo-apikey').value.trim();
@@ -2020,9 +2023,9 @@ function boltaReadSettings(){
 function boltaSaveSettings(){
   const prevKey = boltaCfg.apiKey;
   boltaReadSettings();
-  if(boltaCfg.apiKey !== prevKey) boltaCfg.supplierKey = ''; // 키가 바뀌면 supplierKey도 새로 발급 필요
+  if(boltaCfg.apiKey !== prevKey){ boltaCfg.issuerId = ''; boltaCfg.certExp = ''; } // 키가 바뀌면 발급자 다시 등록
   boltaSaveCfg(); boltaSupState(); renderBolta();
-  alert('저장했습니다.'+(boltaCfg.apiKey&&!boltaCfg.supplierKey?'\n다음 단계: [공급자 등록]을 눌러주세요.':''));
+  alert('저장했습니다.'+(boltaCfg.apiKey&&!boltaCfg.issuerId?'\n다음 단계: [발급자 등록]을 눌러주세요.':''));
 }
 async function boltaRegisterSupplier(){
   boltaReadSettings(); boltaSaveCfg();
@@ -2031,21 +2034,38 @@ async function boltaRegisterSupplier(){
   if(bizno.length!==10) return alert('공급자 사업자등록번호(10자리)를 확인해주세요.');
   if(!boltaCfg.sname||!boltaCfg.sceo) return alert('상호와 대표자명을 입력해주세요.');
   try{
-    const r = await boltaApi('/v1/suppliers','POST',{
-      identificationNumber: bizno,
-      organizationName: boltaCfg.sname,
-      representativeName: boltaCfg.sceo
-    });
-    boltaCfg.supplierKey = r.supplierKey;
+    // 이미 등록된 발급자가 있으면 그대로 사용 (중복 등록 방지)
+    let list = [];
+    try{ list = await boltaApi('/v1/issuers','GET') || []; }catch(e){}
+    let r = (Array.isArray(list)?list:[]).find(x=>x.identificationNumber===bizno);
+    const existed = !!r;
+    if(!r){
+      r = await boltaApi('/v1/issuers','POST',{
+        identificationNumber: bizno,
+        organizationName: boltaCfg.sname,
+        representativeName: boltaCfg.sceo
+      });
+    }
+    boltaCfg.issuerId = r.issuerId;
+    boltaCfg.certExp = (r.certificate&&r.certificate.expiresAt)||'';
     boltaSaveCfg(); boltaSupState(); renderBolta();
-    alert('공급자 등록 완료!\nsupplierKey: '+r.supplierKey+'\n\n다음 단계: [인증서 등록 열기]로 공동인증서를 등록하세요.\n(테스트 키면 테스트 인증서를 사용할 수 있습니다.)');
-  }catch(e){ alert('공급자 등록 실패:\n'+e.message); }
+    alert((existed?'이미 등록된 발급자를 불러왔습니다.':'발급자 등록 완료!')+'\nissuerId: '+r.issuerId+
+      (boltaCfg.certExp ? '\n공동인증서: 등록됨 (만료 '+boltaCfg.certExp.slice(0,10)+')'
+        : '\n\n다음 단계: [인증서 등록 열기]로 공동인증서를 등록하세요.\n(테스트 키면 테스트 인증서를 사용할 수 있습니다.)'));
+  }catch(e){ alert('발급자 등록 실패:\n'+e.message); }
+}
+// 발급자의 인증서 등록 상태 새로고침
+async function boltaRefreshIssuer(){
+  const r = await boltaApi('/v1/issuers/'+encodeURIComponent(boltaCfg.issuerId),'GET');
+  boltaCfg.certExp = (r.certificate&&r.certificate.expiresAt)||'';
+  boltaSaveCfg();
+  return r;
 }
 async function boltaCertUrl(){
   boltaReadSettings(); boltaSaveCfg();
-  if(!boltaCfg.supplierKey) return alert('먼저 [공급자 등록]으로 supplierKey를 발급받아주세요.');
+  if(!boltaCfg.issuerId) return alert('먼저 [발급자 등록]을 눌러주세요.');
   try{
-    const r = await boltaApi('/v1/suppliers/'+encodeURIComponent(boltaCfg.supplierKey)+'/certificates/url','GET');
+    const r = await boltaApi('/v1/issuers/'+encodeURIComponent(boltaCfg.issuerId)+'/certificates/url','GET');
     window.open(r.url,'_blank');
   }catch(e){ alert('인증서 등록 URL 조회 실패:\n'+e.message); }
 }
@@ -2067,7 +2087,7 @@ function boltaOpenIssue(pref){
     else document.getElementById('bi-name').value = pref.custName;
   }
   if(pref && pref.items && pref.items.length){
-    pref.items.slice(0,5).forEach(it=>boltaAddRow(it.n, it.q, it.p));
+    pref.items.slice(0,16).forEach(it=>boltaAddRow(it.n, it.q, it.p));
   } else {
     boltaAddRow();
   }
@@ -2089,7 +2109,7 @@ function boltaFillCust(){
 }
 function boltaAddRow(name, qty, price){
   const wrap = document.getElementById('bi-items');
-  if(wrap.children.length>=5) return alert('품목은 최대 5개까지입니다.');
+  if(wrap.children.length>=16) return alert('품목은 최대 16개까지입니다.');
   const div = document.createElement('div');
   div.style.cssText='display:grid;grid-template-columns:2.4fr 0.9fr 1.3fr 1.4fr 1.2fr auto;gap:5px;margin-bottom:5px;align-items:center';
   div.innerHTML = `<input type="text" class="bi-n" placeholder="품명" value="${name||''}">
@@ -2131,7 +2151,7 @@ function boltaOpenFromEst(cust, items){
 
 async function boltaIssue(){
   if(!boltaCfg.apiKey) return alert('[볼타 설정]에서 API 키를 먼저 입력해주세요.');
-  if(!boltaCfg.supplierKey) return alert('[볼타 설정]에서 [공급자 등록]을 먼저 해주세요.');
+  if(!boltaCfg.issuerId) return alert('[볼타 설정]에서 [발급자 등록]을 먼저 해주세요.\n(볼타 API가 개편되어 예전 공급자 등록은 더 이상 쓰이지 않습니다.)');
   const date = document.getElementById('bi-date').value;
   const idNum = boltaDigits(document.getElementById('bi-bizno').value);
   const name = document.getElementById('bi-name').value.trim();
@@ -2148,10 +2168,14 @@ async function boltaIssue(){
     const n = row.querySelector('.bi-n').value.trim();
     const s = parseInt(row.querySelector('.bi-s').value)||0;
     if(!n && !s) return; // 빈 줄 무시
-    if(!n||s<1){ bad='품명과 공급가액을 확인해주세요.'; return; }
-    const q = parseInt(row.querySelector('.bi-q').value)||null;
-    const p = parseInt(row.querySelector('.bi-p').value)||null;
-    const t = free ? null : (parseInt(row.querySelector('.bi-t').value)||null);
+    if(!n){ bad='품명을 입력해주세요.'; return; }
+    if(s<1){ bad='['+n+'] 공급가액이 0 이하입니다.\n세금계산서 정발행은 마이너스(할인) 품목을 받지 않아요.\n할인 금액은 다른 품목의 공급가액에서 빼서 입력해주세요.'; return; }
+    const qv = parseInt(row.querySelector('.bi-q').value);
+    const pv = parseInt(row.querySelector('.bi-p').value);
+    const q = qv>0 ? qv : null;
+    const p = pv>0 ? pv : null;   // 볼타: 단가는 입력 시 0보다 커야 함
+    const tv = parseInt(row.querySelector('.bi-t').value);
+    const t = free ? null : (isNaN(tv) ? Math.round(s*0.1) : tv);   // 과세: 세액 null 불가
     items.push({date:date, name:n, unitPrice:p, quantity:q, supplyCost:s, tax:t});
   });
   if(bad) return alert(bad);
@@ -2160,6 +2184,7 @@ async function boltaIssue(){
   const payload = {
     date: date,
     purpose: document.getElementById('bi-purpose').value,
+    taxType: free ? 'TAX_FREE' : 'TAXABLE',   // 볼타 필수 항목
     supplier: {
       identificationNumber: supBizno,
       organizationName: boltaCfg.sname,
@@ -2181,15 +2206,22 @@ async function boltaIssue(){
     items: items
   };
   const desc = document.getElementById('bi-desc').value.trim();
-  if(desc && idNum.length===10) payload.description = desc;
+  if(desc && idNum.length===10) payload.description = desc.slice(0,150);
   const ref = 'maeil-'+Date.now();
   const live = boltaLive();
   if(live && !confirm('라이브 모드입니다. 실제로 국세청에 전송되는 발행입니다.\n진행할까요?')) return;
   const btn = document.getElementById('bi-submit');
   btn.disabled = true; btn.textContent = '발행 중...';
   try{
+    // 발급자·인증서 상태 사전 확인
+    let iss;
+    try{ iss = await boltaRefreshIssuer(); }
+    catch(e){ throw new Error('발급자 조회 실패 — [볼타 설정]에서 [발급자 등록]을 다시 눌러주세요.\n원인: '+e.message); }
+    if(iss.identificationNumber && iss.identificationNumber!==supBizno)
+      throw new Error('설정의 공급자 사업자번호('+supBizno+')와 볼타에 등록된 발급자('+iss.identificationNumber+')가 다릅니다.\n[볼타 설정]에서 [발급자 등록]을 다시 눌러주세요.');
+    if(!iss.certificate)
+      throw new Error('공동인증서가 등록되지 않았습니다.\n[볼타 설정] → [인증서 등록 열기]에서 인증서를 먼저 등록해주세요.');
     const r = await boltaApi('/v1/taxInvoices/issue','POST',payload,{
-      'Supplier-Key': boltaCfg.supplierKey,
       'Bolta-Client-Reference-Id': ref
     });
     const sSum = items.reduce((a,i)=>a+i.supplyCost,0);
@@ -2303,7 +2335,7 @@ async function boltaAmendSubmit(){
   }
   btn.disabled = true; btn.textContent = label+' 처리 중...';
   try{
-    const r = await boltaApi(path, 'POST', payload, { 'Supplier-Key': boltaCfg.supplierKey });
+    const r = await boltaApi(path, 'POST', payload);
     const sDiff = reason==='termination' ? -x.supply : payload.items.reduce((a,it)=>a+it.supplyCost,0);
     const tDiff = reason==='termination' ? -x.tax : payload.items.reduce((a,it)=>a+(it.tax||0),0);
     boltaLog.unshift({
@@ -2405,7 +2437,7 @@ function renderBolta(){
   const st = document.getElementById('bolta-status');
   if(st){
     st.innerHTML = boltaCfg.apiKey
-      ? `${boltaLive()?'🟢 라이브 모드':'🟢 테스트 모드'} · 공급자: ${boltaCfg.sname} (${boltaCfg.sbizno}) · ${boltaCfg.supplierKey?'공급자 등록됨':'⚠️ 공급자 미등록'}`
+      ? `${boltaLive()?'🟢 라이브 모드':'🟢 테스트 모드'} · 공급자: ${boltaCfg.sname} (${boltaCfg.sbizno}) · ${!boltaCfg.issuerId?'⚠️ 발급자 미등록 — [볼타 설정]에서 [발급자 등록]':(boltaCfg.certExp?'발급자·인증서 등록됨':'⚠️ 인증서 미등록')}`
       : '';
   }
   const tb = document.getElementById('bolta-tbody');
