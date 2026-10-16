@@ -1137,9 +1137,9 @@ function attachCloudListener(){
   }, err=>{ console.warn('[클라우드] 수신 오류:', err.message); setSyncStatus('error', cloudErrorMsg(err)); });
 }
 
-// ── 볼타 발행내역·설정 동기화 (API 키는 기기마다 따로 보관 — 클라우드에 올리지 않음)
+// ── 볼타 발행내역·설정 동기화 (API 키 포함 — Firestore 보안 규칙으로 본인 계정만 읽고 쓸 수 있음)
 function _boltaEntryId(x){ return x.key || x.ref || [x.date,x.cust,x.total].join('|'); }
-function _boltaCfgForCloud(){ const c = Object.assign({}, boltaCfg); delete c.apiKey; return c; }
+function _boltaCfgForCloud(){ return Object.assign({}, boltaCfg); }   // API 키까지 함께 동기화
 function _stableJSON(o){ o=o||{}; return JSON.stringify(Object.keys(o).sort().reduce((a,k)=>{a[k]=o[k];return a;},{})); }
 function attachBoltaListener(){
   _fbBoltaDoc.onSnapshot(snap=>{
@@ -1156,17 +1156,17 @@ function attachBoltaListener(){
     } else {
       boltaLog = remoteLog;
     }
-    const myKey = boltaCfg.apiKey;                 // 이 기기의 API 키는 유지 (클라우드에 올리지 않음)
+    const myKey = boltaCfg.apiKey;                 // 서버에 키가 없을 때만 이 기기 키를 유지 (구버전 화면이 키 없이 저장한 경우 대비)
     if(d.cfg && typeof d.cfg==='object'){
       if(!_boltaSynced){
         // 첫 수신: 서버 값이 비어 있는 항목은 이 기기 값을 유지 (예: 새 컴퓨터가 먼저 접속해 빈 발급자 정보를 올린 경우)
         const merged = Object.assign({}, boltaCfg);
         Object.keys(d.cfg).forEach(k=>{ const v=d.cfg[k]; if(v!==undefined && v!==null && v!=='') merged[k]=v; });
-        merged.apiKey = myKey;
-        boltaCfg = merged;
+        boltaCfg = merged;                          // 서버 키가 있으면 서버 키, 없으면 이 기기 키 (→ 아래에서 업로드)
         if(_stableJSON(_boltaCfgForCloud()) !== _stableJSON(d.cfg)) needUpload = true;
       } else {
-        boltaCfg = Object.assign({}, boltaCfg, d.cfg, {apiKey: myKey});
+        boltaCfg = Object.assign({}, boltaCfg, d.cfg);
+        if(!d.cfg.apiKey) boltaCfg.apiKey = myKey;
       }
     } else {
       needUpload = true;                            // 서버에 설정이 없으면 이 기기 설정을 올림
