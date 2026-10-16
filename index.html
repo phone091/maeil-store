@@ -231,6 +231,9 @@ textarea{resize:vertical;min-height:55px}
   <div class="nav-item" id="nav-bolta" onclick="gp('bolta',this)"><i class="ti ti-file-invoice" aria-hidden="true"></i> 세금계산서</div>
   <div class="nav-item" onclick="gp('ai',this)"><i class="ti ti-sparkles" aria-hidden="true"></i> AI 분석</div>
   <div style="margin-top:auto;padding:12px 18px;border-top:0.5px solid #e5e5e5;">
+    <div id="sync-status" title="여러 컴퓨터 간 데이터 동기화 상태" style="display:flex;align-items:center;gap:6px;font-size:12px;color:#999;padding:4px 0 8px;line-height:1.35;">
+      <i class="ti ti-cloud"></i> <span>클라우드 연결 중…</span>
+    </div>
     <div onclick="doLogout()" style="display:flex;align-items:center;gap:8px;font-size:13px;color:#999;cursor:pointer;padding:6px 0;" onmouseover="this.style.color='#e74c3c'" onmouseout="this.style.color='#999'">
       <i class="ti ti-logout"></i> 로그아웃
     </div>
@@ -1047,23 +1050,63 @@ const CLOUD_USER = "phone091@gmail.com";
 // ────────────────────────────────────────────────────────────
 
 let _fbDoc = null, _cloudReady = false, _remoteApplying = false;
+// 볼타(전자세금계산서) 발행내역·설정은 별도 문서에 동기화 — 본문 문서(1MB 한도)를 아끼기 위함
+let _fbBoltaDoc = null, _boltaRemoteApplying = false;
+// 서버 데이터를 한 번이라도 받기 전에는 업로드 금지 → 새 컴퓨터의 빈/예시 데이터가 서버를 덮어쓰는 사고 방지
+let _mainSynced = false, _boltaSynced = false;
+const FS_DOC_LIMIT = 1048576;          // Firestore 문서 1개 최대 크기 (1MiB)
+const FS_DOC_WARN  = 850 * 1024;       // 이 크기를 넘으면 경고 표시
+
+function setSyncStatus(state, msg){
+  const box = document.getElementById('sync-status');
+  if(!box) return;
+  const map = {
+    ok:     {icon:'ti-cloud-check', color:'#27ae60'},
+    saving: {icon:'ti-cloud-upload', color:'#999'},
+    warn:   {icon:'ti-alert-triangle', color:'#e67e22'},
+    error:  {icon:'ti-cloud-off', color:'#e74c3c'},
+    local:  {icon:'ti-device-desktop', color:'#999'}
+  };
+  const m = map[state] || map.saving;
+  box.style.color = m.color;
+  box.innerHTML = '<i class="ti '+m.icon+'"></i> <span>'+msg+'</span>';
+}
+let _mainSize = 0, _boltaSize = 0;
+function _payloadSize(o){ try{ return new Blob([JSON.stringify(o)]).size; }catch(e){ return 0; } }
+// 저장 확인·서버 수신 어느 쪽에서 불러도 같은 판정 → 용량 경고가 '동기화됨'에 덮이지 않음
+function markSynced(){
+  const big = Math.max(_mainSize, _boltaSize);
+  if(big > FS_DOC_WARN) setSyncStatus('warn', '동기화됨 · 용량 '+Math.round(big/1024)+'KB / 1024KB — 곧 분할 필요');
+  else setSyncStatus('ok', '동기화됨 · '+_nowHM());
+}
+function _nowHM(){ const d=new Date(); return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'); }
+function cloudErrorMsg(err){
+  const code = (err && (err.code||'')) + '';
+  if(code.includes('permission-denied')) return '동기화 오류: 권한 거부 — Firestore 보안 규칙을 확인하세요';
+  if(code.includes('unavailable'))       return '오프라인 — 연결되면 자동으로 다시 동기화됩니다';
+  if(code.includes('invalid-argument') || /exceeds the maximum|too large/i.test(err&&err.message||'')) return '동기화 오류: 데이터가 1MB 한도를 넘었습니다';
+  return '동기화 오류: '+(err && err.message || '알 수 없음');
+}
 
 function cloudConfigured(){
   return window.firebase && firebaseConfig.apiKey && !firebaseConfig.apiKey.startsWith('여기');
 }
 // 앱 초기화 + 로그인 상태 감시. 비밀번호는 사용자가 로그인 화면에서 입력할 때만 사용됩니다.
 function initCloud(){
-  if(!cloudConfigured()){ console.log('[클라우드] 미설정 → 이 기기에만 저장됩니다.'); return; }
+  if(!cloudConfigured()){ console.log('[클라우드] 미설정 → 이 기기에만 저장됩니다.'); setSyncStatus('local', '이 기기에만 저장 중'); return; }
   try{
     if(!firebase.apps.length) firebase.initializeApp(firebaseConfig);
     _fbDoc = firebase.firestore().collection('maeil').doc('main');
+    _fbBoltaDoc = firebase.firestore().collection('maeil').doc('bolta');
     // 로그인 세션은 브라우저에 안전하게 저장돼, 다음 방문 때 비밀번호 없이 자동 복원됩니다.
     firebase.auth().onAuthStateChanged(function(user){
       if(user){
         _cloudReady = true;
         document.getElementById('login-screen').style.display = 'none';
         document.getElementById('main-app').style.display = 'flex';
+        setSyncStatus('saving', '서버에서 불러오는 중…');
         attachCloudListener();
+        attachBoltaListener();
         console.log('[클라우드] 연결됨 — 다른 기기와 동기화됩니다.');
       } else {
         _cloudReady = false;
@@ -1071,11 +1114,11 @@ function initCloud(){
         document.getElementById('main-app').style.display = 'none';
       }
     });
-  }catch(e){ console.warn('[클라우드] 초기화 실패:', e.message); }
+  }catch(e){ console.warn('[클라우드] 초기화 실패:', e.message); setSyncStatus('error', '클라우드 초기화 실패 — 이 기기에만 저장됩니다'); }
 }
 function attachCloudListener(){
   _fbDoc.onSnapshot(snap=>{
-    if(!snap.exists){ cloudSave(); return; }   // 서버가 비어있으면 현재 데이터 최초 업로드
+    if(!snap.exists){ _mainSynced = true; cloudSave(); return; }   // 서버가 비어있으면 현재 데이터 최초 업로드
     const d = snap.data() || {};
     _remoteApplying = true;
     if(Array.isArray(d.txList))  txList  = d.txList;
@@ -1088,12 +1131,83 @@ function attachCloudListener(){
     try{ localStorage.setItem(LS_KEY, JSON.stringify({txList,estList,taxList,bizList,perList,estSeq,taxSeq})); }catch(e){}
     renderSales(); renderEstList(); renderDashboard(); renderBiz(); renderPer();
     _remoteApplying = false;
-  }, err=>console.warn('[클라우드] 수신 오류:', err.message));
+    _mainSynced = true;
+    _mainSize = _payloadSize(d);
+    if(!snap.metadata.hasPendingWrites) markSynced();
+  }, err=>{ console.warn('[클라우드] 수신 오류:', err.message); setSyncStatus('error', cloudErrorMsg(err)); });
+}
+
+// ── 볼타 발행내역·설정 동기화 (API 키는 기기마다 따로 보관 — 클라우드에 올리지 않음)
+function _boltaEntryId(x){ return x.key || x.ref || [x.date,x.cust,x.total].join('|'); }
+function _boltaCfgForCloud(){ const c = Object.assign({}, boltaCfg); delete c.apiKey; return c; }
+function _stableJSON(o){ o=o||{}; return JSON.stringify(Object.keys(o).sort().reduce((a,k)=>{a[k]=o[k];return a;},{})); }
+function attachBoltaListener(){
+  _fbBoltaDoc.onSnapshot(snap=>{
+    const d = snap.exists ? (snap.data()||{}) : {};
+    const remoteLog = Array.isArray(d.log) ? d.log : [];
+    let needUpload = !snap.exists;
+    _boltaRemoteApplying = true;
+    if(!_boltaSynced){
+      // 첫 수신: 이 기기에만 있던 발행내역을 서버 목록에 합침 (어느 컴퓨터가 먼저 접속해도 내역이 사라지지 않게)
+      const seen = new Set(remoteLog.map(_boltaEntryId));
+      const localOnly = boltaLog.filter(x=>!seen.has(_boltaEntryId(x)));
+      boltaLog = remoteLog.concat(localOnly).sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
+      if(localOnly.length) needUpload = true;
+    } else {
+      boltaLog = remoteLog;
+    }
+    const myKey = boltaCfg.apiKey;                 // 이 기기의 API 키는 유지 (클라우드에 올리지 않음)
+    if(d.cfg && typeof d.cfg==='object'){
+      if(!_boltaSynced){
+        // 첫 수신: 서버 값이 비어 있는 항목은 이 기기 값을 유지 (예: 새 컴퓨터가 먼저 접속해 빈 발급자 정보를 올린 경우)
+        const merged = Object.assign({}, boltaCfg);
+        Object.keys(d.cfg).forEach(k=>{ const v=d.cfg[k]; if(v!==undefined && v!==null && v!=='') merged[k]=v; });
+        merged.apiKey = myKey;
+        boltaCfg = merged;
+        if(_stableJSON(_boltaCfgForCloud()) !== _stableJSON(d.cfg)) needUpload = true;
+      } else {
+        boltaCfg = Object.assign({}, boltaCfg, d.cfg, {apiKey: myKey});
+      }
+    } else {
+      needUpload = true;                            // 서버에 설정이 없으면 이 기기 설정을 올림
+    }
+    try{
+      localStorage.setItem(BOLTA_LOG_KEY, JSON.stringify(boltaLog));
+      localStorage.setItem(BOLTA_CFG_KEY, JSON.stringify(boltaCfg));
+    }catch(e){}
+    try{ renderBolta(); }catch(e){}
+    _boltaSize = _payloadSize(d);
+    _boltaRemoteApplying = false;
+    _boltaSynced = true;
+    if(needUpload) boltaCloudSave();
+  }, err=>{ console.warn('[클라우드] 볼타 수신 오류:', err.message); setSyncStatus('error', cloudErrorMsg(err)); });
+}
+function boltaCloudSave(){
+  if(!_cloudReady || !_fbBoltaDoc || _boltaRemoteApplying || !_boltaSynced) return;
+  const payload = {log: boltaLog, cfg: _boltaCfgForCloud(), _updatedAt: Date.now()};
+  const size = _payloadSize(payload);
+  if(size > FS_DOC_LIMIT){
+    setSyncStatus('error', '동기화 중단: 세금계산서 발행내역이 1MB 한도를 넘었습니다 ('+Math.round(size/1024)+'KB)');
+    return;
+  }
+  setSyncStatus('saving', '저장 중…');
+  _fbBoltaDoc.set(payload)
+    .then(()=>{ _boltaSize = size; markSynced(); })
+    .catch(err=>{ console.warn('[클라우드] 볼타 저장 오류:', err.message); setSyncStatus('error', cloudErrorMsg(err)); });
 }
 function cloudSave(){
-  if(!_cloudReady || !_fbDoc || _remoteApplying) return;
-  _fbDoc.set({txList,estList,taxList,bizList,perList,estSeq,taxSeq,_updatedAt:Date.now()})
-    .catch(err=>console.warn('[클라우드] 저장 오류:', err.message));
+  if(!_cloudReady || !_fbDoc || _remoteApplying || !_mainSynced) return;
+  const payload = {txList,estList,taxList,bizList,perList,estSeq,taxSeq,_updatedAt:Date.now()};
+  // 대략적인 크기 점검 (한글은 UTF-8에서 3바이트)
+  const size = _payloadSize(payload);
+  if(size > FS_DOC_LIMIT){
+    setSyncStatus('error', '동기화 중단: 데이터가 1MB 한도를 넘었습니다 ('+Math.round(size/1024)+'KB) — 정리/분할 필요');
+    return;
+  }
+  setSyncStatus('saving', '저장 중…');
+  _fbDoc.set(payload)
+    .then(()=>{ _mainSize = size; markSynced(); })
+    .catch(err=>{ console.warn('[클라우드] 저장 오류:', err.message); setSyncStatus('error', cloudErrorMsg(err)); });
 }
 
 function saveData(){
@@ -1942,8 +2056,8 @@ delete boltaCfg.supplierKey; // 볼타 API 개편: /v1/suppliers·Supplier-Key �
 
 let boltaLog = JSON.parse(localStorage.getItem(BOLTA_LOG_KEY)||'[]');
 
-function boltaSaveCfg(){ localStorage.setItem(BOLTA_CFG_KEY, JSON.stringify(boltaCfg)); }
-function boltaSaveLog(){ localStorage.setItem(BOLTA_LOG_KEY, JSON.stringify(boltaLog)); }
+function boltaSaveCfg(){ localStorage.setItem(BOLTA_CFG_KEY, JSON.stringify(boltaCfg)); boltaCloudSave(); }
+function boltaSaveLog(){ localStorage.setItem(BOLTA_LOG_KEY, JSON.stringify(boltaLog)); boltaCloudSave(); }
 const boltaDigits = s => (s||'').replace(/[^0-9]/g,'');
 const boltaLive = () => (boltaCfg.apiKey||'').startsWith('live_');
 
@@ -2025,7 +2139,8 @@ function boltaReadSettings(){
 function boltaSaveSettings(){
   const prevKey = boltaCfg.apiKey;
   boltaReadSettings();
-  if(boltaCfg.apiKey !== prevKey){ boltaCfg.issuerId = ''; boltaCfg.certExp = ''; } // 키가 바뀌면 발급자 다시 등록
+  // 키가 '바뀐' 경우에만 발급자 재등록. 새 컴퓨터에서 처음 입력(이전 키 없음)할 때는 동기화된 발급자 정보를 유지.
+  if(prevKey && boltaCfg.apiKey !== prevKey){ boltaCfg.issuerId = ''; boltaCfg.certExp = ''; }
   boltaSaveCfg(); boltaSupState(); renderBolta();
   alert('저장했습니다.'+(boltaCfg.apiKey&&!boltaCfg.issuerId?'\n다음 단계: [발급자 등록]을 눌러주세요.':''));
 }
